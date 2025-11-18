@@ -1,81 +1,257 @@
 package ma.dentaluxe.repository.modules.auth.inMemDB_implementation;
 
-import ma.dentaluxe.entities.enums.Assurance;
-import ma.dentaluxe.entities.enums.Sexe;
-import ma.dentaluxe.entities.patient.Patient;
-import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
+import ma.dentaluxe.conf.Db;
+import ma.dentaluxe.entities.utilisateur.Utilisateur;
+import ma.dentaluxe.repository.modules.auth.api.AuthRepository;
 
-import java.time.LocalDate;
+import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
-public class AuthRepositoryImpl implements PatientRepository {
+public class AuthRepositoryImpl implements AuthRepository {
 
-    private final List<Patient> data = new ArrayList<>();
+    // ============================
+    //   FIND ALL
+    // ============================
+    @Override
+    public List<Utilisateur> findAll() {
+        List<Utilisateur> users = new ArrayList<>();
+        String sql = "SELECT * FROM utilisateur";
 
-    public AuthRepositoryImpl() {
-        // Données d'exemple : 3 patients d'aujourd'hui, 1 d'hier
-        LocalDateTime now = LocalDateTime.now();
-        data.add(Patient.builder()
-                .id(1L).nom("Amal").prenom("Z.")
-                .email("amal@example.com").telephone("0611-111111")
-                .dateNaissance(LocalDate.of(1995, 5, 12))
-                .dateCreation(now.minusMinutes(5))
-                .sexe(Sexe.Femme).assurance(Assurance.CNSS)
-                .build());
+        try (Connection conn = Db.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
 
-        data.add(Patient.builder()
-                .id(2L).nom("Hassan").prenom("B.")
-                .email("hassan@example.com").telephone("0622-222222")
-                .dateNaissance(LocalDate.of(1989, 9, 23))
-                .dateCreation(now.minusHours(1))
-                .sexe(Sexe.Homme).assurance(Assurance.CNOPS)
-                .build());
+            while (rs.next()) {
+                users.add(map(rs));
+            }
 
-        data.add(Patient.builder()
-                .id(3L).nom("Nour").prenom("C.")
-                .email("nour@example.com").telephone("0633-333333")
-                .dateNaissance(LocalDate.of(2000, 2, 2))
-                .dateCreation(now.minusMinutes(30))
-                .sexe(Sexe.Femme).assurance(Assurance.Autre)
-                .build());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return users;
+    }
 
-        data.add(Patient.builder()
-                .id(4L).nom("Youssef").prenom("D.")
-                .email("youssef@example.com").telephone("0644-444444")
-                .dateNaissance(LocalDate.of(1992, 11, 1))
-                .dateCreation(now.minusDays(1)) // hier → ne doit pas s'afficher
-                .sexe(Sexe.Homme).assurance(Assurance.Aucune)
-                .build());
+    // ============================
+    //   FIND BY ID
+    // ============================
+    @Override
+    public Utilisateur findById(Long id) {
+        String sql = "SELECT * FROM utilisateur WHERE id = ?";
 
-        // Tri stable par id pour cohérence (findAll renverra trié par date desc via service)
-        data.sort(Comparator.comparing(Patient::getId));//comparer entre 2 objets//sort:se base sur le comparateur
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return map(rs);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    // ============================
+    //   FIND BY EMAIL
+    // ============================
+    @Override
+    public Utilisateur findByEmail(String email) {
+        String sql = "SELECT * FROM utilisateur WHERE email = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, email);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return map(rs);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    // ============================
+    //   FIND BY USERNAME (login)
+    // ============================
+    @Override
+    public Utilisateur findByUsername(String login) {
+        String sql = "SELECT * FROM utilisateur WHERE login = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, login);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return map(rs);
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    // ============================
+    //   CREATE
+    // ============================
+    @Override
+    public void create(Utilisateur u) {
+        String sql = """
+            INSERT INTO utilisateur 
+            (creationDate, lastModificationDate, createdBy, updatedBy, nom, prenom, 
+             email, tel, adresse, cin, sexe, login, passwordHash, lastLoginDate, 
+             dateNaissance, actif)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """;
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setTimestamp(1, toTimestamp(u.getCreationDate()));
+            pstmt.setTimestamp(2, toTimestamp(u.getLastModificationDate()));
+            pstmt.setString(3, u.getCreatedBy());
+            pstmt.setString(4, u.getUpdatedBy());
+            pstmt.setString(5, u.getNom());
+            pstmt.setString(6, u.getPrenom());
+            pstmt.setString(7, u.getEmail());
+            pstmt.setString(8, u.getTel());
+            pstmt.setString(9, u.getAdresse());
+            pstmt.setString(10, u.getCin());
+            pstmt.setString(11, u.getSexe() != null ? u.getSexe().name() : null);
+            pstmt.setString(12, u.getLogin());
+            pstmt.setString(13, u.getPasswordHash());
+            pstmt.setTimestamp(14, toTimestamp(u.getLastLoginDate()));
+            pstmt.setDate(15, toDate(u.getDateNaissance()));
+            pstmt.setBoolean(16, u.getActif());
+
+            pstmt.executeUpdate();
+
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                u.setId(rs.getLong(1));
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ============================
+    //   UPDATE
+    // ============================
+    @Override
+    public void update(Utilisateur u) {
+        String sql = """
+            UPDATE utilisateur SET
+            creationDate = ?, lastModificationDate = ?, createdBy = ?, updatedBy = ?, 
+            nom = ?, prenom = ?, email = ?, tel = ?, adresse = ?, cin = ?, sexe = ?, 
+            login = ?, passwordHash = ?, lastLoginDate = ?, dateNaissance = ?, actif = ?
+            WHERE id = ?
+        """;
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setTimestamp(1, toTimestamp(u.getCreationDate()));
+            pstmt.setTimestamp(2, toTimestamp(u.getLastModificationDate()));
+            pstmt.setString(3, u.getCreatedBy());
+            pstmt.setString(4, u.getUpdatedBy());
+            pstmt.setString(5, u.getNom());
+            pstmt.setString(6, u.getPrenom());
+            pstmt.setString(7, u.getEmail());
+            pstmt.setString(8, u.getTel());
+            pstmt.setString(9, u.getAdresse());
+            pstmt.setString(10, u.getCin());
+            pstmt.setString(11, u.getSexe() != null ? u.getSexe().name() : null);
+            pstmt.setString(12, u.getLogin());
+            pstmt.setString(13, u.getPasswordHash());
+            pstmt.setTimestamp(14, toTimestamp(u.getLastLoginDate()));
+            pstmt.setDate(15, toDate(u.getDateNaissance()));
+            pstmt.setBoolean(16, u.getActif());
+
+            pstmt.setLong(17, u.getId());
+
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ============================
+    //   DELETE
+    // ============================
+    @Override
+    public void delete(Utilisateur u) {
+        deleteById(u.getId());
     }
 
     @Override
-    public List<Patient> findAll() { return List.copyOf(data); }
-    //UTILISER PREPARE STATEMENT
+    public void deleteById(Long id) {
+        String sql = "DELETE FROM utilisateur WHERE id = ?";
 
-    @Override
-    public Patient findById(Long id) {
-        return data.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
-        //stream => permet de crrer une vue de la table , pour faire tous avec cette vue (avec les requettes)
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
-    @Override
-    public void create(Patient patient) { data.add(patient); }
-
-    @Override
-    public void update(Patient patient) {
-        deleteById(patient.getId());
-        data.add(patient);
+    // ============================
+    //   MAP ResultSet → Utilisateur
+    // ============================
+    private Utilisateur map(ResultSet rs) throws SQLException {
+        return Utilisateur.builder()
+                .id(rs.getLong("id"))
+                .creationDate(toLocalDateTime(rs.getTimestamp("creationDate")))
+                .lastModificationDate(toLocalDateTime(rs.getTimestamp("lastModificationDate")))
+                .createdBy(rs.getString("createdBy"))
+                .updatedBy(rs.getString("updatedBy"))
+                .nom(rs.getString("nom"))
+                .prenom(rs.getString("prenom"))
+                .email(rs.getString("email"))
+                .tel(rs.getString("tel"))
+                .adresse(rs.getString("adresse"))
+                .cin(rs.getString("cin"))
+                .sexe(rs.getString("sexe") != null ? ma.dentaluxe.entities.enums.Sexe.valueOf(rs.getString("sexe")) : null)
+                .login(rs.getString("login"))
+                .passwordHash(rs.getString("passwordHash"))
+                .lastLoginDate(toLocalDateTime(rs.getTimestamp("lastLoginDate")))
+                .dateNaissance(rs.getDate("dateNaissance") != null ? rs.getDate("dateNaissance").toLocalDate() : null)
+                .actif(rs.getBoolean("actif"))
+                .build();
     }
 
-    @Override
-    public void delete(Patient patient) { data.removeIf(p -> p.getId().equals(patient.getId())); }
+    // ============================
+    //   UTILS
+    // ============================
+    private Timestamp toTimestamp(LocalDateTime dt) {
+        return dt != null ? Timestamp.valueOf(dt) : null;
+    }
 
-    @Override
-    public void deleteById(Long id) { data.removeIf(p -> p.getId().equals(id)); }
+    private LocalDateTime toLocalDateTime(Timestamp ts) {
+        return ts != null ? ts.toLocalDateTime() : null;
+    }
+
+    private Date toDate(java.time.LocalDate d) {
+        return d != null ? Date.valueOf(d) : null;
+    }
 }

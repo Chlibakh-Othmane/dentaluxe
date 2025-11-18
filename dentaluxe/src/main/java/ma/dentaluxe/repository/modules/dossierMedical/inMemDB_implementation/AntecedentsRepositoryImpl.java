@@ -1,39 +1,181 @@
 package ma.dentaluxe.repository.modules.dossierMedical.inMemDB_implementation;
 
+import ma.dentaluxe.conf.Db;
 import ma.dentaluxe.entities.dossier.Antecedents;
+import ma.dentaluxe.entities.enums.CategorieAntecedent;
+import ma.dentaluxe.entities.enums.NiveauRisque;
 import ma.dentaluxe.repository.modules.dossierMedical.api.AntecedentsRepository;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class AntecedentsRepositoryImpl implements AntecedentsRepository {
-    private final List<Antecedents> data = new ArrayList<>();
 
     @Override
-    public List<Antecedents> findAll() { return List.copyOf(data); }
+    public List<Antecedents> findAll() {
+        List<Antecedents> antecedents = new ArrayList<>();
+        String sql = "SELECT * FROM Antecedents";
+
+        try (Connection conn = Db.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                antecedents.add(mapResultSetToAntecedents(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return antecedents;
+    }
 
     @Override
     public Antecedents findById(Long id) {
-        return data.stream().filter(a -> a.getIdAntecedent().equals(id)).findFirst().orElse(null);
+        String sql = "SELECT * FROM Antecedents WHERE idAntecedent = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return mapResultSetToAntecedents(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    @Override
+    public void create(Antecedents antecedent) {
+        String sql = "INSERT INTO Antecedents (idDM, nom, categorie, niveauDeRisque) VALUES (?, ?, ?, ?)";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setLong(1, antecedent.getIdDM());
+            pstmt.setString(2, antecedent.getNom());
+            pstmt.setString(3, antecedent.getCategorie().name());
+            pstmt.setString(4, antecedent.getNiveauDeRisque().name());
+
+            pstmt.executeUpdate();
+
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                antecedent.setIdAntecedent(rs.getLong(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void update(Antecedents antecedent) {
+        String sql = "UPDATE Antecedents SET idDM = ?, nom = ?, categorie = ?, niveauDeRisque = ? WHERE idAntecedent = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, antecedent.getIdDM());
+            pstmt.setString(2, antecedent.getNom());
+            pstmt.setString(3, antecedent.getCategorie().name());
+            pstmt.setString(4, antecedent.getNiveauDeRisque().name());
+            pstmt.setLong(5, antecedent.getIdAntecedent());
+
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void delete(Antecedents antecedent) {
+        deleteById(antecedent.getIdAntecedent());
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        String sql = "DELETE FROM Antecedents WHERE idAntecedent = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public List<Antecedents> findByDossierMedicalId(Long idDM) {
-        return data.stream().filter(a -> a.getIdDM().equals(idDM)).collect(Collectors.toList());
+        List<Antecedents> antecedents = new ArrayList<>();
+        String sql = "SELECT * FROM Antecedents WHERE idDM = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, idDM);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                antecedents.add(mapResultSetToAntecedents(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return antecedents;
     }
 
     @Override
-    public void create(Antecedents entity) { data.add(entity); }
+    public List<Antecedents> findByCategorie(CategorieAntecedent categorie) {
+        List<Antecedents> antecedents = new ArrayList<>();
+        String sql = "SELECT * FROM Antecedents WHERE categorie = ?";
 
-    @Override
-    public void update(Antecedents entity) {
-        deleteById(entity.getIdAntecedent());
-        data.add(entity);
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, categorie.name());
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                antecedents.add(mapResultSetToAntecedents(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return antecedents;
     }
 
     @Override
-    public void delete(Antecedents entity) { data.removeIf(a -> a.getIdAntecedent().equals(entity.getIdAntecedent())); }
+    public List<Antecedents> findByNiveauRisque(NiveauRisque niveauRisque) {
+        List<Antecedents> antecedents = new ArrayList<>();
+        String sql = "SELECT * FROM Antecedents WHERE niveauDeRisque = ?";
 
-    @Override
-    public void deleteById(Long id) { data.removeIf(a -> a.getIdAntecedent().equals(id)); }
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, niveauRisque.name());
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                antecedents.add(mapResultSetToAntecedents(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return antecedents;
+    }
+
+    private Antecedents mapResultSetToAntecedents(ResultSet rs) throws SQLException {
+        return Antecedents.builder()
+                .idAntecedent(rs.getLong("idAntecedent"))
+                .idDM(rs.getLong("idDM"))
+                .nom(rs.getString("nom"))
+                .categorie(CategorieAntecedent.valueOf(rs.getString("categorie")))
+                .niveauDeRisque(NiveauRisque.valueOf(rs.getString("niveauDeRisque")))
+                .build();
+    }
 }

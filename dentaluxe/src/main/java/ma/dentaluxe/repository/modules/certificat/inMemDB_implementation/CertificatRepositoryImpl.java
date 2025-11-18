@@ -1,81 +1,183 @@
 package ma.dentaluxe.repository.modules.certificat.inMemDB_implementation;
 
-import ma.dentaluxe.entities.enums.Assurance;
-import ma.dentaluxe.entities.enums.Sexe;
-import ma.dentaluxe.entities.patient.Patient;
-import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
+import ma.dentaluxe.conf.Db;
+import ma.dentaluxe.entities.certificat.Certificat;
+import ma.dentaluxe.repository.modules.certificat.api.CertificatRepository;
 
+import java.sql.*;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
-public class CertificatRepositoryImpl implements PatientRepository {
+public class CertificatRepositoryImpl implements CertificatRepository {
 
-    private final List<Patient> data = new ArrayList<>();
-
-    public CertificatRepositoryImpl() {
-        // Données d'exemple : 3 patients d'aujourd'hui, 1 d'hier
-        LocalDateTime now = LocalDateTime.now();
-        data.add(Patient.builder()
-                .id(1L).nom("Amal").prenom("Z.")
-                .email("amal@example.com").telephone("0611-111111")
-                .dateNaissance(LocalDate.of(1995, 5, 12))
-                .dateCreation(now.minusMinutes(5))
-                .sexe(Sexe.Femme).assurance(Assurance.CNSS)
-                .build());
-
-        data.add(Patient.builder()
-                .id(2L).nom("Hassan").prenom("B.")
-                .email("hassan@example.com").telephone("0622-222222")
-                .dateNaissance(LocalDate.of(1989, 9, 23))
-                .dateCreation(now.minusHours(1))
-                .sexe(Sexe.Homme).assurance(Assurance.CNOPS)
-                .build());
-
-        data.add(Patient.builder()
-                .id(3L).nom("Nour").prenom("C.")
-                .email("nour@example.com").telephone("0633-333333")
-                .dateNaissance(LocalDate.of(2000, 2, 2))
-                .dateCreation(now.minusMinutes(30))
-                .sexe(Sexe.Femme).assurance(Assurance.Autre)
-                .build());
-
-        data.add(Patient.builder()
-                .id(4L).nom("Youssef").prenom("D.")
-                .email("youssef@example.com").telephone("0644-444444")
-                .dateNaissance(LocalDate.of(1992, 11, 1))
-                .dateCreation(now.minusDays(1)) // hier → ne doit pas s'afficher
-                .sexe(Sexe.Homme).assurance(Assurance.Aucune)
-                .build());
-
-        // Tri stable par id pour cohérence (findAll renverra trié par date desc via service)
-        data.sort(Comparator.comparing(Patient::getId));//comparer entre 2 objets//sort:se base sur le comparateur
+    @Override
+    public List<Certificat> findAll() {
+        List<Certificat> certificats = new ArrayList<>();
+        String sql = "SELECT * FROM certificat";
+        try (Connection conn = Db.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                certificats.add(mapResultSetToCertificat(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return certificats;
     }
 
     @Override
-    public List<Patient> findAll() { return List.copyOf(data); }
-    //UTILISER PREPARE STATEMENT
-
-    @Override
-    public Patient findById(Long id) {
-        return data.stream().filter(p -> p.getId().equals(id)).findFirst().orElse(null);
-        //stream => permet de crrer une vue de la table , pour faire tous avec cette vue (avec les requettes)
+    public Certificat findById(Long id) {
+        String sql = "SELECT * FROM certificat WHERE idCertif = ?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, id);
+            ResultSet rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return mapResultSetToCertificat(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @Override
-    public void create(Patient patient) { data.add(patient); }
-
-    @Override
-    public void update(Patient patient) {
-        deleteById(patient.getId());
-        data.add(patient);
+    public void create(Certificat certificat) {
+        String sql = "INSERT INTO certificat (idDM, idMedecin, dateDebut, dateFin, duree, noteMedecin) VALUES (?, ?, ?, ?, ?, ?)";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            pstmt.setLong(1, certificat.getIdDM());
+            pstmt.setLong(2, certificat.getIdMedecin());
+            pstmt.setDate(3, Date.valueOf(certificat.getDateDebut()));
+            pstmt.setDate(4, Date.valueOf(certificat.getDateFin()));
+            pstmt.setInt(5, certificat.getDuree());
+            pstmt.setString(6, certificat.getNoteMedecin());
+            pstmt.executeUpdate();
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                certificat.setIdCertif(rs.getLong(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
-    public void delete(Patient patient) { data.removeIf(p -> p.getId().equals(patient.getId())); }
+    public void update(Certificat certificat) {
+        String sql = "UPDATE certificat SET idDM = ?, idMedecin = ?, dateDebut = ?, dateFin = ?, duree = ?, noteMedecin = ? WHERE idCertif = ?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, certificat.getIdDM());
+            pstmt.setLong(2, certificat.getIdMedecin());
+            pstmt.setDate(3, Date.valueOf(certificat.getDateDebut()));
+            pstmt.setDate(4, Date.valueOf(certificat.getDateFin()));
+            pstmt.setInt(5, certificat.getDuree());
+            pstmt.setString(6, certificat.getNoteMedecin());
+            pstmt.setLong(7, certificat.getIdCertif());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
     @Override
-    public void deleteById(Long id) { data.removeIf(p -> p.getId().equals(id)); }
+    public void delete(Certificat certificat) {
+        deleteById(certificat.getIdCertif());
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        String sql = "DELETE FROM certificat WHERE idCertif = ?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, id);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public List<Certificat> findByIdDM(Long idDM) {
+        List<Certificat> certificats = new ArrayList<>();
+        String sql = "SELECT * FROM certificat WHERE idDM = ?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, idDM);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                certificats.add(mapResultSetToCertificat(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return certificats;
+    }
+
+    @Override
+    public List<Certificat> findByIdMedecin(Long idMedecin) {
+        List<Certificat> certificats = new ArrayList<>();
+        String sql = "SELECT * FROM certificat WHERE idMedecin = ?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, idMedecin);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                certificats.add(mapResultSetToCertificat(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return certificats;
+    }
+
+    @Override
+    public List<Certificat> findByDateDebutBetween(LocalDate startDate, LocalDate endDate) {
+        List<Certificat> certificats = new ArrayList<>();
+        String sql = "SELECT * FROM certificat WHERE dateDebut BETWEEN ? AND ?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setDate(1, Date.valueOf(startDate));
+            pstmt.setDate(2, Date.valueOf(endDate));
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                certificats.add(mapResultSetToCertificat(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return certificats;
+    }
+
+    @Override
+    public List<Certificat> findByDateFinBetween(LocalDate startDate, LocalDate endDate) {
+        List<Certificat> certificats = new ArrayList<>();
+        String sql = "SELECT * FROM certificat WHERE dateFin BETWEEN ? AND ?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setDate(1, Date.valueOf(startDate));
+            pstmt.setDate(2, Date.valueOf(endDate));
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) {
+                certificats.add(mapResultSetToCertificat(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return certificats;
+    }
+
+    private Certificat mapResultSetToCertificat(ResultSet rs) throws SQLException {
+        return Certificat.builder()
+                .idCertif(rs.getLong("idCertif"))
+                .idDM(rs.getLong("idDM"))
+                .idMedecin(rs.getLong("idMedecin"))
+                .dateDebut(rs.getDate("dateDebut").toLocalDate())
+                .dateFin(rs.getDate("dateFin").toLocalDate())
+                .duree(rs.getInt("duree"))
+                .noteMedecin(rs.getString("noteMedecin"))
+                .build();
+    }
 }

@@ -2,7 +2,7 @@
 -- 8 octets=BIGINT
 -- ON MRT FK DANS LA TABLE ENFANT
 -- 1-N : Dans la table du côté "N" (Many)
--- 1-1 : Dans l'une des deux (selon la logique métier)
+-- 1-1 : Dans l'une des deux (selon la logique métier)dentaluxe_db
 -- n-n : Dans une table de liaison
 
 

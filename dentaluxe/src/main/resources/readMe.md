@@ -188,12 +188,15 @@ Chaque package contient :
 ---
 
 ## 👨‍💻 Équipe projet
-| Étudiant | Rôle | Email |
-|-----------|------|------|
-| Étudiant 1 | ...  | ... |
-| Étudiant 2 | ...  | ... |
-| Étudiant 3 | ...  | ... |
-| Étudiant 4 | ...  | ... |
+| Étudiant                  | Rôle                                           | Email               |
+|---------------------------|------------------------------------------------|---------------------|
+| Étudiant 1: aya lezregue  | - j'ai realisee Repo de :actes/caisse/agenda   | alezregue@gmail.com |
+|                           | - dans la classe du test : j'ai tester le repo |                     |
+|                           | de actes,caisse et agenda(rdv)                 |                     |
+|                           | - j'ai aussi realisee service pour (actes)     |                     |
+| Étudiant 2                | ...                                            | ...                 |
+| Étudiant 3                | ...                                            | ...                 |
+| Étudiant 4                | ...                                            | ...                 |
 
 ---
 
