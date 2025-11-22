@@ -1,41 +1,53 @@
 package ma.dentaluxe.repository.modules.userManager.inMemDB_implementation;
 
+import ma.dentaluxe.conf.Db;
 import ma.dentaluxe.entities.utilisateur.Medecin;
+import ma.dentaluxe.entities.utilisateur.Staff;
 import ma.dentaluxe.repository.modules.userManager.api.MedecinRepository;
+
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
-public class MedecinRepositoryImpl implements MedecinRepository {
-    private final List<Medecin> data = new ArrayList<>();
-
-    @Override
-    public List<Medecin> findAll() { return List.copyOf(data); }
-
-    @Override
-    public Medecin findById(Long id) {
-        return data.stream().filter(m -> m.getId().equals(id)).findFirst().orElse(null);
-    }
+public class MedecinRepositoryImpl extends SecretaireRepositoryImpl implements MedecinRepository {
 
     @Override
     public List<Medecin> findBySpecialite(String specialite) {
-        return data.stream()
-                .filter(m -> m.getSpecialite().equalsIgnoreCase(specialite))
-                .collect(Collectors.toList());
+        List<Medecin> list = new ArrayList<>();
+        String sql = "SELECT u.id as user_id, u.nom, u.prenom, u.email, u.tel, u.login, u.actif, " +
+                "st.id as staff_id, st.salaire, st.prime, st.date_recrutement, st.solde_conge, " +
+                "m.specialite, m.agenda_medecin " +
+                "FROM Medecin m " +
+                "JOIN Staff st ON m.id=st.id " +
+                "JOIN Utilisateur u ON st.id=u.id " +
+                "WHERE m.specialite=?";
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, specialite);
+            ResultSet rs = pstmt.executeQuery();
+            while (rs.next()) list.add(mapMedecin(rs));
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return list;
     }
 
-    @Override
-    public void create(Medecin entity) { data.add(entity); }
+    private Medecin mapMedecin(ResultSet rs) throws SQLException {
+        // Création du staff
+        Staff staff = new Staff();
+        staff.setId(rs.getLong("staff_id"));
+        staff.setSalaire(rs.getBigDecimal("salaire"));
+        staff.setPrime(rs.getBigDecimal("prime"));
+        staff.setDateRecrutement(rs.getDate("date_recrutement") != null ? rs.getDate("date_recrutement").toLocalDate() : null);
+        staff.setSoldeConge(rs.getInt("solde_conge"));
 
-    @Override
-    public void update(Medecin entity) {
-        deleteById(entity.getId());
-        data.add(entity);
+        // Création du médecin
+        Medecin m = new Medecin();
+        m.setId(rs.getLong("user_id"));
+        m.setSpecialite(rs.getString("specialite"));
+        m.setAgendaMedecin(rs.getString("agenda_medecin"));
+        m.setStaff(staff);
+
+        return m;
     }
-
-    @Override
-    public void delete(Medecin entity) { data.removeIf(m -> m.getId().equals(entity.getId())); }
-
-    @Override
-    public void deleteById(Long id) { data.removeIf(m -> m.getId().equals(id)); }
 }

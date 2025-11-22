@@ -1,4 +1,4 @@
-package ma.dentaluxe.service.modules.patient.api;
+package ma.dentaluxe.service.modules.api;
 
 
 import java.util.List;

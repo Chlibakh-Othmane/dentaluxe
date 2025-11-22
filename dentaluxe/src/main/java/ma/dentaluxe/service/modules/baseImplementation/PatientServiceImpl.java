@@ -1,4 +1,4 @@
-package ma.dentaluxe.service.modules.patient.baseImplementation;
+package ma.dentaluxe.service.modules.baseImplementation;
 
 import java.time.LocalDate;
 import java.time.Period;
@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 import ma.dentaluxe.entities.patient.Patient;
 import ma.dentaluxe.mvc.dto.PatientDTO;
 import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
-import ma.dentaluxe.service.modules.patient.api.PatientService;
+import ma.dentaluxe.service.modules.api.PatientService;
 
 @Data
 @AllArgsConstructor

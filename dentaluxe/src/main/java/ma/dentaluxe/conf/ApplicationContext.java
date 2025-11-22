@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Properties;
 import ma.dentaluxe.mvc.controllers.modules.patient.api.PatientController;
 import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
-import ma.dentaluxe.service.modules.patient.api.PatientService;
+import ma.dentaluxe.service.modules.api.PatientService;
 
 public class ApplicationContext {
 

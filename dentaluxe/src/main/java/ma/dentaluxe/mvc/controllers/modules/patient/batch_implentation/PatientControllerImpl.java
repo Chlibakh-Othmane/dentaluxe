@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import ma.dentaluxe.mvc.controllers.modules.patient.api.PatientController;
 import ma.dentaluxe.mvc.dto.PatientDTO;
-import ma.dentaluxe.service.modules.patient.api.PatientService;
+import ma.dentaluxe.service.modules.api.PatientService;
 
 @Data @AllArgsConstructor @NoArgsConstructor
 public class PatientControllerImpl implements PatientController {
