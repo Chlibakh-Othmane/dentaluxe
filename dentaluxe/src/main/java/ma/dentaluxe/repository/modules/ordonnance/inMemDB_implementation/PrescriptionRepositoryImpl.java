@@ -1,127 +1,161 @@
 package ma.dentaluxe.repository.modules.ordonnance.inMemDB_implementation;
 
+import ma.dentaluxe.conf.Db;
 import ma.dentaluxe.entities.ordonnance.Prescription;
 import ma.dentaluxe.repository.modules.ordonnance.api.PrescriptionRepository;
 
+import java.sql.*;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 public class PrescriptionRepositoryImpl implements PrescriptionRepository {
 
-    private final List<Prescription> data = new ArrayList<>();
-
-    public PrescriptionRepositoryImpl() {
-        // Données d'exemple cohérentes avec vos entités
-        data.add(Prescription.builder()
-                .idPrescription(1L)
-                .idOrdo(1L)
-                .idMedicament(101L)
-                .quantite(30)
-                .frequence("3 fois par jour")
-                .dureeEnJours(10)
-                .build());
-
-        data.add(Prescription.builder()
-                .idPrescription(2L)
-                .idOrdo(1L)
-                .idMedicament(102L)
-                .quantite(20)
-                .frequence("2 fois par jour")
-                .dureeEnJours(5)
-                .build());
-
-        data.add(Prescription.builder()
-                .idPrescription(3L)
-                .idOrdo(2L)
-                .idMedicament(103L)
-                .quantite(15)
-                .frequence("1 fois par jour")
-                .dureeEnJours(7)
-                .build());
-
-        data.add(Prescription.builder()
-                .idPrescription(4L)
-                .idOrdo(2L)
-                .idMedicament(104L)
-                .quantite(10)
-                .frequence("1 comprimé si douleur")
-                .dureeEnJours(3)
-                .build());
-
-        data.add(Prescription.builder()
-                .idPrescription(5L)
-                .idOrdo(3L)
-                .idMedicament(101L)
-                .quantite(25)
-                .frequence("2 comprimés 3 fois par jour")
-                .dureeEnJours(8)
-                .build());
-
-        data.add(Prescription.builder()
-                .idPrescription(6L)
-                .idOrdo(3L)
-                .idMedicament(105L)
-                .quantite(1)
-                .frequence("1 sachet par jour")
-                .dureeEnJours(5)
-                .build());
-
-        // Tri par ID de prescription
-        data.sort(Comparator.comparing(Prescription::getIdPrescription));
-    }
-
     @Override
     public List<Prescription> findAll() {
-        return List.copyOf(data);
+        List<Prescription> prescriptions = new ArrayList<>();
+        String sql = "SELECT * FROM prescription ORDER BY idPrescription";
+
+        try (Connection conn = Db.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                prescriptions.add(mapResultSetToPrescription(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return prescriptions;
     }
 
     @Override
     public Prescription findById(Long id) {
-        return data.stream()
-                .filter(p -> p.getIdPrescription().equals(id))
-                .findFirst()
-                .orElse(null);
+        String sql = "SELECT * FROM prescription WHERE idPrescription = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return mapResultSetToPrescription(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @Override
     public void create(Prescription prescription) {
-        // Générer un nouvel ID si non fourni
-        if (prescription.getIdPrescription() == null) {
-            Long newId = data.stream()
-                    .mapToLong(Prescription::getIdPrescription)
-                    .max()
-                    .orElse(0L) + 1L;
-            prescription.setIdPrescription(newId);
+        String sql = "INSERT INTO prescription (idOrdo, idMedicament, quantite, frequence, dureeEnJours) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setLong(1, prescription.getIdOrdo());
+            pstmt.setLong(2, prescription.getIdMedicament());
+            pstmt.setInt(3, prescription.getQuantite());
+            pstmt.setString(4, prescription.getFrequence());
+            pstmt.setInt(5, prescription.getDureeEnJours());
+
+            pstmt.executeUpdate();
+
+            // Récupérer l'ID généré
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                prescription.setIdPrescription(rs.getLong(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        data.add(prescription);
     }
 
     @Override
     public void update(Prescription prescription) {
-        deleteById(prescription.getIdPrescription());
-        data.add(prescription);
+        String sql = "UPDATE prescription SET idOrdo = ?, idMedicament = ?, quantite = ?, frequence = ?, dureeEnJours = ? WHERE idPrescription = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, prescription.getIdOrdo());
+            pstmt.setLong(2, prescription.getIdMedicament());
+            pstmt.setInt(3, prescription.getQuantite());
+            pstmt.setString(4, prescription.getFrequence());
+            pstmt.setInt(5, prescription.getDureeEnJours());
+            pstmt.setLong(6, prescription.getIdPrescription());
+
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void delete(Prescription prescription) {
-        data.removeIf(p -> p.getIdPrescription().equals(prescription.getIdPrescription()));
+        deleteById(prescription.getIdPrescription());
     }
 
     @Override
     public void deleteById(Long id) {
-        data.removeIf(p -> p.getIdPrescription().equals(id));
+        String sql = "DELETE FROM prescription WHERE idPrescription = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public List<Prescription> findByOrdonnance(Long idOrdo) {
-        return data.stream()
-                .filter(p -> p.getIdOrdo().equals(idOrdo))
-                .toList();
+        List<Prescription> prescriptions = new ArrayList<>();
+        String sql = "SELECT * FROM prescription WHERE idOrdo = ? ORDER BY idPrescription";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, idOrdo);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                prescriptions.add(mapResultSetToPrescription(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return prescriptions;
     }
 
     @Override
     public void deleteByOrdonnance(Long idOrdo) {
-        data.removeIf(p -> p.getIdOrdo().equals(idOrdo));
+        String sql = "DELETE FROM prescription WHERE idOrdo = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, idOrdo);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Prescription mapResultSetToPrescription(ResultSet rs) throws SQLException {
+        return Prescription.builder()
+                .idPrescription(rs.getLong("idPrescription"))
+                .idOrdo(rs.getLong("idOrdo"))
+                .idMedicament(rs.getLong("idMedicament"))
+                .quantite(rs.getInt("quantite"))
+                .frequence(rs.getString("frequence"))
+                .dureeEnJours(rs.getInt("dureeEnJours"))
+                .build();
     }
 }

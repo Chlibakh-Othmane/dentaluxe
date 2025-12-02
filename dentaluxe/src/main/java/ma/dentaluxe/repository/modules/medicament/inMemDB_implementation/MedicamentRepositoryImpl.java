@@ -1,138 +1,256 @@
 package ma.dentaluxe.repository.modules.medicament.inMemDB_implementation;
 
+// ===== IMPORTS ENTITÉS =====
 import ma.dentaluxe.entities.ordonnance.Medicament;
+
+// ===== IMPORTS REPOSITORY =====
 import ma.dentaluxe.repository.modules.medicament.api.MedicamentRepository;
 
+// ===== IMPORTS BASE DE DONNÉES =====
+import ma.dentaluxe.conf.Db;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.sql.Types;
+
+// ===== AUTRES IMPORTS =====
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
+// ==============================================================
+// AUTEURS : CHLIBAKH OTHMANE
+// ==============================================================
+
+/**
+ * Implémentation du repository Medicament pour base de données MySQL
+ */
 public class MedicamentRepositoryImpl implements MedicamentRepository {
 
-    private final List<Medicament> data = new ArrayList<>();
-
-    public MedicamentRepositoryImpl() {
-        // Données d'exemple pour les médicaments
-        data.add(Medicament.builder()
-                .idMedicament(101L)
-                .nom("Paracétamol")
-                .type("Antalgique")
-                .forme("Comprimé")
-                .remboursable(true)
-                .prixUnitaire(2.5)
-                .description("Antalgique et antipyrétique")
-                .build());
-
-        data.add(Medicament.builder()
-                .idMedicament(102L)
-                .nom("Ibuprofène")
-                .type("Anti-inflammatoire")
-                .forme("Comprimé")
-                .remboursable(true)
-                .prixUnitaire(3.2)
-                .description("Anti-inflammatoire non stéroïdien")
-                .build());
-
-        data.add(Medicament.builder()
-                .idMedicament(103L)
-                .nom("Amoxicilline")
-                .type("Antibiotique")
-                .forme("Gélule")
-                .remboursable(true)
-                .prixUnitaire(8.7)
-                .description("Antibiotique à large spectre")
-                .build());
-
-        data.add(Medicament.builder()
-                .idMedicament(104L)
-                .nom("Vitamine C")
-                .type("Vitamine")
-                .forme("Comprimé")
-                .remboursable(false)
-                .prixUnitaire(12.0)
-                .description("Complément alimentaire")
-                .build());
-
-        data.add(Medicament.builder()
-                .idMedicament(105L)
-                .nom("Smecta")
-                .type("Antidiarrhéique")
-                .forme("Sachet")
-                .remboursable(true)
-                .prixUnitaire(4.5)
-                .description("Traitement des diarrhées")
-                .build());
-
-        // Tri par nom de médicament
-        data.sort(Comparator.comparing(Medicament::getNom));
-    }
-
-    @Override
-    public List<Medicament> findAll() {
-        return List.copyOf(data);
-    }
-
-    @Override
-    public Medicament findById(Long id) {
-        return data.stream()
-                .filter(m -> m.getIdMedicament().equals(id))
-                .findFirst()
-                .orElse(null);
-    }
-
-    @Override
-    public void create(Medicament medicament) {
-        if (medicament.getIdMedicament() == null) {
-            Long newId = data.stream()
-                    .mapToLong(Medicament::getIdMedicament)
-                    .max()
-                    .orElse(0L) + 1L;
-            medicament.setIdMedicament(newId);
-        }
-        data.add(medicament);
-    }
-
-    @Override
-    public void update(Medicament medicament) {
-        deleteById(medicament.getIdMedicament());
-        data.add(medicament);
-    }
-
-    @Override
-    public void delete(Medicament medicament) {
-        data.removeIf(m -> m.getIdMedicament().equals(medicament.getIdMedicament()));
-    }
-
-    @Override
-    public void deleteById(Long id) {
-        data.removeIf(m -> m.getIdMedicament().equals(id));
-    }
+    // ==============================================================
+    // MÉTHODES DE RECHERCHE
+    // ==============================================================
 
     @Override
     public List<Medicament> findByNom(String nom) {
-        return data.stream()
-                .filter(m -> m.getNom().toLowerCase().contains(nom.toLowerCase()))
-                .toList();
+        List<Medicament> medicaments = new ArrayList<>();
+        String sql = "SELECT * FROM medicament WHERE nom LIKE ? ORDER BY nom";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, "%" + nom + "%");
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                medicaments.add(mapResultSetToMedicament(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return medicaments;
     }
 
     @Override
     public List<Medicament> findByType(String type) {
-        return data.stream()
-                .filter(m -> m.getType().equalsIgnoreCase(type))
-                .toList();
+        List<Medicament> medicaments = new ArrayList<>();
+        String sql = "SELECT * FROM medicament WHERE type = ? ORDER BY nom";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, type);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                medicaments.add(mapResultSetToMedicament(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return medicaments;
     }
 
     @Override
     public List<Medicament> findByRemboursable(Boolean remboursable) {
-        return data.stream()
-                .filter(m -> m.getRemboursable().equals(remboursable))
-                .toList();
+        List<Medicament> medicaments = new ArrayList<>();
+        String sql = "SELECT * FROM medicament WHERE remboursable = ? ORDER BY nom";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setBoolean(1, remboursable);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                medicaments.add(mapResultSetToMedicament(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return medicaments;
     }
 
     @Override
     public List<Medicament> findByForme(String forme) {
-        return data.stream()
-                .filter(m -> m.getForme().equalsIgnoreCase(forme))
-                .toList();
+        List<Medicament> medicaments = new ArrayList<>();
+        String sql = "SELECT * FROM medicament WHERE forme = ? ORDER BY nom";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, forme);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                medicaments.add(mapResultSetToMedicament(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return medicaments;
+    }
+
+    // ==============================================================
+    // MÉTHODES CRUD DE BASE
+    // ==============================================================
+
+    @Override
+    public List<Medicament> findAll() {
+        List<Medicament> medicaments = new ArrayList<>();
+        String sql = "SELECT * FROM medicament ORDER BY nom";
+
+        try (Connection conn = Db.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                medicaments.add(mapResultSetToMedicament(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return medicaments;
+    }
+
+    @Override
+    public Medicament findById(Long id) {
+        String sql = "SELECT * FROM medicament WHERE idMedicament = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return mapResultSetToMedicament(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    @Override
+    public void create(Medicament medicament) {
+        String sql = "INSERT INTO medicament (nom, type, forme, remboursable, prixUnitaire, description) VALUES (?, ?, ?, ?, ?, ?)";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setString(1, medicament.getNom());
+            pstmt.setString(2, medicament.getType());
+            pstmt.setString(3, medicament.getForme());
+            pstmt.setBoolean(4, medicament.getRemboursable());
+            pstmt.setDouble(5, medicament.getPrixUnitaire());
+
+            if (medicament.getDescription() != null) {
+                pstmt.setString(6, medicament.getDescription());
+            } else {
+                pstmt.setNull(6, Types.VARCHAR);
+            }
+
+            pstmt.executeUpdate();
+
+            // Récupérer l'ID généré
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                medicament.setIdMedicament(rs.getLong(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void update(Medicament medicament) {
+        String sql = "UPDATE medicament SET nom = ?, type = ?, forme = ?, remboursable = ?, prixUnitaire = ?, description = ? WHERE idMedicament = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, medicament.getNom());
+            pstmt.setString(2, medicament.getType());
+            pstmt.setString(3, medicament.getForme());
+            pstmt.setBoolean(4, medicament.getRemboursable());
+            pstmt.setDouble(5, medicament.getPrixUnitaire());
+
+            if (medicament.getDescription() != null) {
+                pstmt.setString(6, medicament.getDescription());
+            } else {
+                pstmt.setNull(6, Types.VARCHAR);
+            }
+
+            pstmt.setLong(7, medicament.getIdMedicament());
+
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void delete(Medicament medicament) {
+        deleteById(medicament.getIdMedicament());
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        String sql = "DELETE FROM medicament WHERE idMedicament = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ==============================================================
+    // MÉTHODE UTILITAIRE PRIVÉE
+    // ==============================================================
+
+    /**
+     * Convertit un ResultSet en objet Medicament
+     * @param rs ResultSet SQL
+     * @return Objet Medicament
+     * @throws SQLException en cas d'erreur SQL
+     */
+    private Medicament mapResultSetToMedicament(ResultSet rs) throws SQLException {
+        return Medicament.builder()
+                .idMedicament(rs.getLong("idMedicament"))
+                .nom(rs.getString("nom"))
+                .type(rs.getString("type"))
+                .forme(rs.getString("forme"))
+                .remboursable(rs.getBoolean("remboursable"))
+                .prixUnitaire(rs.getDouble("prixUnitaire"))
+                .description(rs.getString("description"))
+                .build();
     }
 }

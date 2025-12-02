@@ -69,15 +69,16 @@ public class ActeRepositoryImpl implements ActeRepository {
         return actes;
     }
       //transformer une ligne de résultat SQL (ResultSet) en objet Java Acte
-    private Acte mapResultSetToActe(ResultSet rs) throws SQLException {
-         return Acte.builder()     //pour créer un objet Acte
-            .idActe(rs.getLong("idActe"))
-            .libelle(rs.getString("libelle"))
-            .description(rs.getString("description"))
-            .prixDeBase(rs.getDouble("prixDeBase"))
-             .categorie(CategorieActe.valueOf(rs.getString("categorie")))  
-              .build(); //    Termine la construction de l’objet Acte
-    }
+      private Acte mapResultSetToActe(ResultSet rs) throws SQLException {
+          return Acte.builder()
+                  .idActe(rs.getLong("idActe"))
+                  .libelle(rs.getString("libelle"))
+                  .description(rs.getString("description"))
+                  .prixDeBase(rs.getDouble("prixDeBase"))
+                  .categorie(CategorieActe.valueOf(rs.getString("categorie")))
+                  .idInterventionMedecin(rs.getLong("idInterventionMedecin")) // ← AJOUT IMPORTANT!
+                  .build();
+      }
 
     @Override
     public Acte findById(Long id) {

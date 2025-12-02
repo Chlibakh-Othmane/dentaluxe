@@ -1,98 +1,160 @@
 package ma.dentaluxe.repository.modules.ordonnance.inMemDB_implementation;
 
+import ma.dentaluxe.conf.Db;
 import ma.dentaluxe.entities.ordonnance.Ordonnance;
 import ma.dentaluxe.repository.modules.ordonnance.api.OrdonnanceRepository;
 
-import java.time.LocalDate;
+import java.sql.*;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 public class OrdonnanceRepositoryImpl implements OrdonnanceRepository {
 
-    private final List<Ordonnance> data = new ArrayList<>();
-
-    public OrdonnanceRepositoryImpl() {
-        // Données d'exemple : 4 ordonnances
-        LocalDate aujourdhui = LocalDate.now();
-
-        data.add(Ordonnance.builder()
-                .idOrdo(1L).idDM(101L).idMedecin(201L)
-                .dateOrdonnance(aujourdhui.minusDays(2))
-                .build());
-
-        data.add(Ordonnance.builder()
-                .idOrdo(2L).idDM(102L).idMedecin(202L)
-                .dateOrdonnance(aujourdhui.minusDays(1))
-                .build());
-
-        data.add(Ordonnance.builder()
-                .idOrdo(3L).idDM(101L).idMedecin(201L)
-                .dateOrdonnance(aujourdhui)
-                .build());
-
-        data.add(Ordonnance.builder()
-                .idOrdo(4L).idDM(103L).idMedecin(203L)
-                .dateOrdonnance(aujourdhui.minusDays(5))
-                .build());
-
-        // Tri par date d'ordonnance (descendant)
-        data.sort(Comparator.comparing(Ordonnance::getDateOrdonnance).reversed());
-    }
-
     @Override
     public List<Ordonnance> findAll() {
-        return List.copyOf(data);
+        List<Ordonnance> ordonnances = new ArrayList<>();
+        String sql = "SELECT * FROM ordonnance ORDER BY dateOrdonnance DESC";
+
+        try (Connection conn = Db.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                ordonnances.add(mapResultSetToOrdonnance(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ordonnances;
     }
 
     @Override
     public Ordonnance findById(Long id) {
-        return data.stream()
-                .filter(o -> o.getIdOrdo().equals(id))
-                .findFirst()
-                .orElse(null);
+        String sql = "SELECT * FROM ordonnance WHERE idOrdo = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return mapResultSetToOrdonnance(rs);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 
     @Override
     public void create(Ordonnance ordonnance) {
-        // Générer un nouvel ID si non fourni
-        if (ordonnance.getIdOrdo() == null) {
-            Long newId = data.stream()
-                    .mapToLong(Ordonnance::getIdOrdo)
-                    .max()
-                    .orElse(0L) + 1L;
-            ordonnance.setIdOrdo(newId);
+        String sql = "INSERT INTO ordonnance (idDM, idMedecin, dateOrdonnance) VALUES (?, ?, ?)";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            pstmt.setLong(1, ordonnance.getIdDM());
+            pstmt.setLong(2, ordonnance.getIdMedecin());
+            pstmt.setDate(3, Date.valueOf(ordonnance.getDateOrdonnance()));
+
+            pstmt.executeUpdate();
+
+            // Récupérer l'ID généré
+            ResultSet rs = pstmt.getGeneratedKeys();
+            if (rs.next()) {
+                ordonnance.setIdOrdo(rs.getLong(1));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-        data.add(ordonnance);
     }
 
     @Override
     public void update(Ordonnance ordonnance) {
-        deleteById(ordonnance.getIdOrdo());
-        data.add(ordonnance);
+        String sql = "UPDATE ordonnance SET idDM = ?, idMedecin = ?, dateOrdonnance = ? WHERE idOrdo = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, ordonnance.getIdDM());
+            pstmt.setLong(2, ordonnance.getIdMedecin());
+            pstmt.setDate(3, Date.valueOf(ordonnance.getDateOrdonnance()));
+            pstmt.setLong(4, ordonnance.getIdOrdo());
+
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void delete(Ordonnance ordonnance) {
-        data.removeIf(o -> o.getIdOrdo().equals(ordonnance.getIdOrdo()));
+        deleteById(ordonnance.getIdOrdo());
     }
 
     @Override
     public void deleteById(Long id) {
-        data.removeIf(o -> o.getIdOrdo().equals(id));
+        String sql = "DELETE FROM ordonnance WHERE idOrdo = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public List<Ordonnance> findByDossierMedical(Long idDM) {
-        return data.stream()
-                .filter(o -> o.getIdDM().equals(idDM))
-                .toList();
+        List<Ordonnance> ordonnances = new ArrayList<>();
+        String sql = "SELECT * FROM ordonnance WHERE idDM = ? ORDER BY dateOrdonnance DESC";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, idDM);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                ordonnances.add(mapResultSetToOrdonnance(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ordonnances;
     }
 
     @Override
     public List<Ordonnance> findByMedecin(Long idMedecin) {
-        return data.stream()
-                .filter(o -> o.getIdMedecin().equals(idMedecin))
-                .toList();
+        List<Ordonnance> ordonnances = new ArrayList<>();
+        String sql = "SELECT * FROM ordonnance WHERE idMedecin = ? ORDER BY dateOrdonnance DESC";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, idMedecin);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                ordonnances.add(mapResultSetToOrdonnance(rs));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return ordonnances;
+    }
+
+    private Ordonnance mapResultSetToOrdonnance(ResultSet rs) throws SQLException {
+        return Ordonnance.builder()
+                .idOrdo(rs.getLong("idOrdo"))
+                .idDM(rs.getLong("idDM"))
+                .idMedecin(rs.getLong("idMedecin"))
+                .dateOrdonnance(rs.getDate("dateOrdonnance").toLocalDate())
+                .build();
     }
 }

@@ -112,9 +112,9 @@ public class AuthRepositoryImpl implements AuthRepository {
     public void create(Utilisateur u) {
         String sql = """
             INSERT INTO utilisateur 
-            (creationDate, lastModificationDate, createdBy, updatedBy, nom, prenom, 
-             email, tel, adresse, cin, sexe, login, passwordHash, lastLoginDate, 
-             dateNaissance, actif)
+            (creation_date, last_modification_date, created_by, updated_by, nom, prenom, 
+             email, tel, adresse, cin, sexe, login, password_hash, last_login_date, 
+             date_naissance, actif)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
@@ -157,9 +157,9 @@ public class AuthRepositoryImpl implements AuthRepository {
     public void update(Utilisateur u) {
         String sql = """
             UPDATE utilisateur SET
-            creationDate = ?, lastModificationDate = ?, createdBy = ?, updatedBy = ?, 
+            creation_date = ?, last_modification_date = ?, created_by = ?, updated_by = ?, 
             nom = ?, prenom = ?, email = ?, tel = ?, adresse = ?, cin = ?, sexe = ?, 
-            login = ?, passwordHash = ?, lastLoginDate = ?, dateNaissance = ?, actif = ?
+            login = ?, password_hash = ?, last_login_date = ?, date_naissance = ?, actif = ?
             WHERE id = ?
         """;
 
@@ -221,10 +221,10 @@ public class AuthRepositoryImpl implements AuthRepository {
     private Utilisateur map(ResultSet rs) throws SQLException {
         return Utilisateur.builder()
                 .id(rs.getLong("id"))
-                .creationDate(toLocalDateTime(rs.getTimestamp("creationDate")))
-                .lastModificationDate(toLocalDateTime(rs.getTimestamp("lastModificationDate")))
-                .createdBy(rs.getString("createdBy"))
-                .updatedBy(rs.getString("updatedBy"))
+                .creationDate(toLocalDateTime(rs.getTimestamp("creation_date")))
+                .lastModificationDate(toLocalDateTime(rs.getTimestamp("last_modification_date")))
+                .createdBy(rs.getString("created_by"))
+                .updatedBy(rs.getString("updated_by"))
                 .nom(rs.getString("nom"))
                 .prenom(rs.getString("prenom"))
                 .email(rs.getString("email"))
@@ -233,9 +233,9 @@ public class AuthRepositoryImpl implements AuthRepository {
                 .cin(rs.getString("cin"))
                 .sexe(rs.getString("sexe") != null ? ma.dentaluxe.entities.enums.Sexe.valueOf(rs.getString("sexe")) : null)
                 .login(rs.getString("login"))
-                .passwordHash(rs.getString("passwordHash"))
-                .lastLoginDate(toLocalDateTime(rs.getTimestamp("lastLoginDate")))
-                .dateNaissance(rs.getDate("dateNaissance") != null ? rs.getDate("dateNaissance").toLocalDate() : null)
+                .passwordHash(rs.getString("password_hash"))
+                .lastLoginDate(toLocalDateTime(rs.getTimestamp("last_login_date")))
+                .dateNaissance(rs.getDate("date_naissance") != null ? rs.getDate("date_naissance").toLocalDate() : null)
                 .actif(rs.getBoolean("actif"))
                 .build();
     }
