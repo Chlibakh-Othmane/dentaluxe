@@ -105,6 +105,106 @@ public class AuthRepositoryImpl implements AuthRepository {
         return null;
     }
 
+    @Override
+    public Utilisateur authenticate(String login, String password) {
+        String sql = "SELECT * FROM utilisateur WHERE login = ? AND password_hash = ? AND actif = TRUE";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, login);
+            pstmt.setString(2, password);
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+
+                if (rs.next()) {
+                    Utilisateur user = map(rs);
+
+                    updateLastLoginDate(user.getId());
+
+                    return user;
+                }
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Erreur authentification : " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+    private void updateLastLoginDate(Long userId) {
+        String sql = "UPDATE utilisateur SET last_login_date = CURRENT_TIMESTAMP WHERE id = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, userId);
+            pstmt.executeUpdate();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // ============================
+//   LOGIN EXISTS
+// ============================
+    @Override
+    public boolean loginExists(String login) {
+        String sql = "SELECT COUNT(*) as count FROM utilisateur WHERE login = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setString(1, login);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getInt("count") > 0;
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return false;
+    }
+
+
+    // ============================
+//   GET USER ROLE
+// ============================
+    @Override
+    public String getUserRole(Long userId) {
+        String sql = """
+        SELECT r.libelle 
+        FROM Role r 
+        INNER JOIN Utilisateur_Role ur ON r.id = ur.role_id 
+        WHERE ur.utilisateur_id = ? 
+        LIMIT 1
+    """;
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, userId);
+            ResultSet rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                return rs.getString("libelle");
+            }
+
+        } catch (SQLException e) {
+            System.err.println(" Erreur récupération rôle : " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
+
     // ============================
     //   CREATE
     // ============================
