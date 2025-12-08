@@ -10,7 +10,7 @@
                2) Définir une classe MAIN pour exécuter l’application
                3) Générer un “fat-jar” exécutable (Shade)
                4) Lancer les tests (JUnit 5) proprement (Surefire)
-               5) Générer la JavaDoc
+    si je veux           5) Générer la JavaDoc
                6) Rendre le build reproductible (mêmes résultats partout)
                                                                             -->
   <!--  Auteur : Pr. O. El Midaoui                                          -->
