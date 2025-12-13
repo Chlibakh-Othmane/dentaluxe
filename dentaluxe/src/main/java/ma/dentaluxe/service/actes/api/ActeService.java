@@ -12,8 +12,13 @@ public interface ActeService {
     void createActe(Acte acte);
     Acte getActeById(Long id);
     List<Acte> getAllActes();
+
+    void addActe(Acte acte);
+
     void updateActe(Acte acte);
     void deleteActe(Long id);
+
+    void deleteActeById(Long id);
 
     // ========== Recherche et filtres ==========
     List<Acte> getActesByCategorie(CategorieActe categorie);

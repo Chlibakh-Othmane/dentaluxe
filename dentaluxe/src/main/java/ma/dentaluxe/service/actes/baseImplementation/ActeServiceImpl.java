@@ -1,11 +1,12 @@
 // AUTEUR : AYA LEZREGUE
-package ma.dentaluxe.service.modules.actes.baseImplementation;
+package ma.dentaluxe.service.actes.baseImplementation;
 
 import ma.dentaluxe.entities.acte.Acte;
 import ma.dentaluxe.entities.enums.CategorieActe;
 import ma.dentaluxe.repository.modules.actes.api.ActeRepository;
 import ma.dentaluxe.repository.modules.actes.inMemDB_implementation.ActeRepositoryImpl;
-import ma.dentaluxe.service.modules.actes.api.ActeService;
+import ma.dentaluxe.service.actes.api.ActeService;
+
 
 import java.util.List;
 
@@ -21,6 +22,11 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public List<Acte> getAllActes() {
         return acteRepository.findAll();
+    }
+
+    @Override
+    public void createActe(Acte acte) {
+
     }
 
     @Override
@@ -56,6 +62,11 @@ public class ActeServiceImpl implements ActeService {
     }
 
     @Override
+    public void deleteActe(Long id) {
+
+    }
+
+    @Override
     public void deleteActeById(Long id) {
         if (id == null) {
             System.err.println("Erreur : ID invalide pour la suppression.");
@@ -80,6 +91,71 @@ public class ActeServiceImpl implements ActeService {
             return getAllActes();
         }
         return acteRepository.searchByLibelle(keyword);
+    }
+
+    @Override
+    public Acte getActeByLibelle(String libelle) {
+        return null;
+    }
+
+    @Override
+    public int countActes() {
+        return 0;
+    }
+
+    @Override
+    public int countActesByCategorie(CategorieActe categorie) {
+        return 0;
+    }
+
+    @Override
+    public double getAveragePrixActes() {
+        return 0;
+    }
+
+    @Override
+    public Acte getMostExpensiveActe() {
+        return null;
+    }
+
+    @Override
+    public Acte getCheapestActe() {
+        return null;
+    }
+
+    @Override
+    public double getTotalPrixActes() {
+        return 0;
+    }
+
+    @Override
+    public boolean validateActe(Acte acte) {
+        return false;
+    }
+
+    @Override
+    public boolean acteExists(Long id) {
+        return false;
+    }
+
+    @Override
+    public boolean acteExistsByLibelle(String libelle) {
+        return false;
+    }
+
+    @Override
+    public void updatePrix(Long idActe, double nouveauPrix) {
+
+    }
+
+    @Override
+    public void applyDiscount(Long idActe, double pourcentage) {
+
+    }
+
+    @Override
+    public List<Acte> getActesByPriceRange(double prixMin, double prixMax) {
+        return List.of();
     }
 
     // Méthode privée pour valider les données d'un acte (Logique métier)

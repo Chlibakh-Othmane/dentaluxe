@@ -9,10 +9,10 @@ import ma.dentaluxe.repository.modules.dashboard.inMemDB_implementation.Dashboar
 import ma.dentaluxe.repository.modules.dossierMedical.inMemDB_implementation.ConsultationRepositoryImpl;
 import ma.dentaluxe.repository.modules.dossierMedical.inMemDB_implementation.InterventionMedecinRepositoryImpl;
 import ma.dentaluxe.repository.modules.patient.inMemDB_implementation.PatientRepositoryImpl;
-import ma.dentaluxe.service.dashboard.api.DashboardService;
-import ma.dentaluxe.service.dashboard.Impl.AdminDashboardServiceImpl;
-import ma.dentaluxe.service.dashboard.Impl.MedecinDashboardServiceImpl;
-import ma.dentaluxe.service.dashboard.Impl.SecretaireDashboardServiceImpl;
+import ma.dentaluxe.service.dashboard_statistiques.api.DashboardService;
+import ma.dentaluxe.service.dashboard_statistiques.Impl.AdminDashboardServiceImpl;
+import ma.dentaluxe.service.dashboard_statistiques.Impl.MedecinDashboardServiceImpl;
+import ma.dentaluxe.service.dashboard_statistiques.Impl.SecretaireDashboardServiceImpl;
 
 import java.sql.Connection;
 import java.util.Map;
