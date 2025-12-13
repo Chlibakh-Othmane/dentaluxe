@@ -62,6 +62,7 @@ public class ConsultationRepositoryImpl implements ConsultationRepository {
             pstmt.setDate(4, Date.valueOf(consultation.getDateConsultation()));
             pstmt.setString(5, consultation.getStatut().name());
             pstmt.setString(6, consultation.getObservation());
+            pstmt.setString(7, consultation.getMotif());
 
             pstmt.executeUpdate();
 
@@ -76,8 +77,11 @@ public class ConsultationRepositoryImpl implements ConsultationRepository {
 
     @Override
     public void update(Consultation consultation) {
-        String sql = "UPDATE Consultation SET idRDV = ?, idDM = ?, idMedecin = ?, dateConsultation = ?, " +
-                "statut = ?, observation = ?,  WHERE idConsultation = ?";
+
+        String sql = "UPDATE consultation " +
+                "SET idRDV = ?, idDM = ?, idMedecin = ?, dateConsultation = ?, " +
+                "statut = ?, observation = ? " +
+                "WHERE idConsultation = ?";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -91,10 +95,12 @@ public class ConsultationRepositoryImpl implements ConsultationRepository {
             pstmt.setLong(7, consultation.getIdConsultation());
 
             pstmt.executeUpdate();
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
+
 
     @Override
     public void delete(Consultation consultation) {
