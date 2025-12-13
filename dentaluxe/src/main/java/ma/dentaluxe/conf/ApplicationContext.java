@@ -1,76 +1,45 @@
 package ma.dentaluxe.conf;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Properties;
-import ma.dentaluxe.mvc.controllers.modules.patient.api.PatientController;
-import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
-import ma.dentaluxe.service.patient.api.PatientService;
 
 public class ApplicationContext {
-
-    private static final Map<Class<?>, Object> context       = new HashMap<>();
-    private static final Map<String, Object>   contextByName = new HashMap<>(); // Ajout d'une deuxième map
+    private static final Properties props = new Properties();
 
     static {
-        var configFile = Thread.currentThread().getContextClassLoader().getResourceAsStream("config/beans.properties");
+        System.out.println(" Chargement de beans.properties...");
+        try {
+            // On essaie de charger le fichier depuis la racine du classpath
+            InputStream input = ApplicationContext.class.getResourceAsStream("/config/beans.properties");
 
-        if (configFile != null) {
-            Properties properties = new Properties();
-            try {
-                properties.load(configFile);
-                String daoClassName = properties.getProperty("patientRepo");
-                String servClassName = properties.getProperty("patientService");
-                String ctrlClassName = properties.getProperty("patientController");
-
-                Class<?> cRepository = Class.forName(daoClassName);
-                PatientRepository repository = (PatientRepository) cRepository.getDeclaredConstructor().newInstance();
-
-                Class<?> cService = Class.forName(servClassName);
-                PatientService service = (PatientService) cService.getDeclaredConstructor(PatientRepository.class).newInstance(repository);
-
-                Class<?> cController = Class.forName(ctrlClassName);
-                PatientController controller = (PatientController) cController.getDeclaredConstructor(PatientService.class).newInstance(service);
-
-                // Stockage des beans dans le contexte
-                context.put(PatientRepository.class, repository);
-                context.put(PatientService.class, service);
-                context.put(PatientController.class, controller);
-
-                // Enregistrement des beans aussi avec des noms explicites
-                contextByName.put("patientDao", repository);
-                contextByName.put("patientService", service);
-                contextByName.put("patientController", controller);
-
-            } catch (Exception e) {
-                e.printStackTrace();
+            if (input == null) {
+                System.err.println(" ERREUR CRITIQUE : Le fichier '/config/beans.properties' est introuvable !");
+                System.err.println(" Vérifiez que le dossier 'resources' est bien marqué comme 'Resources Root'.");
+                System.err.println(" Faites 'Build > Rebuild Project' pour copier le fichier dans target/classes.");
+                // On ne lance pas d'exception ici pour voir les autres erreurs, mais le programme ne marchera pas
+            } else {
+                props.load(input);
+                System.out.println(" beans.properties chargé. Nombre de beans : " + props.size());
+                input.close();
             }
-        } else {
-            System.err.println("Erreur : Le fichier beans.properties est introuvable !");
+        } catch (IOException e) {
+            System.err.println(" Erreur I/O lors du chargement : " + e.getMessage());
         }
     }
 
-    /**
-     * Retourne un composant bean en fonction de son nom (String).
-     */
     public static Object getBean(String beanName) {
-        return contextByName.get(beanName);
+        String className = props.getProperty(beanName);
+
+        if (className == null) {
+            throw new RuntimeException("⚠ Le bean ID '" + beanName + "' n'existe pas dans beans.properties !");
+        }
+
+        try {
+            Class<?> cl = Class.forName(className);
+            return cl.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(" Impossible de créer l'instance pour : " + beanName + " (Classe: " + className + ")", e);
+        }
     }
-
-    /**
-     * Retourne un composant bean en fonction de sa classe.
-     */
-    public static <T> T getBean(Class<T> beanClass) {
-        return beanClass.cast(context.get(beanClass));
-    }
-
-
 }
-
-
-
-
-
-
-
-

@@ -20,4 +20,5 @@ public class Consultation {
     private LocalDate dateConsultation;
     private StatutConsultation statut;
     private String observation;
+    private String motif;
 }

@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class InterventionMedecin {
     private Long idIM;
     private Long idMedecin;
+    private Long idActe;
     private Long idConsultation;
     private Integer numDent;
     private Double prixIntervention;

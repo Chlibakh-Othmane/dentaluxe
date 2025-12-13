@@ -44,13 +44,14 @@ public class InterventionMedecinRepositoryImpl implements InterventionMedecinRep
 
     @Override
     public void create(InterventionMedecin interventionMedecin) {
-        String sql = "INSERT INTO interventionMedecin (idMedecin, idConsultation, numDent, prixIntervention) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO interventionMedecin (idMedecin, idConsultation, idActe, numDent, prixIntervention) VALUES (?, ?, ?, ? , ?)";
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             pstmt.setLong(1, interventionMedecin.getIdMedecin());
             pstmt.setLong(2, interventionMedecin.getIdConsultation());
-            pstmt.setInt(3, interventionMedecin.getNumDent());
-            pstmt.setDouble(4, interventionMedecin.getPrixIntervention());
+            pstmt.setLong(3, interventionMedecin.getIdActe());
+            pstmt.setInt(4, interventionMedecin.getNumDent());
+            pstmt.setDouble(5, interventionMedecin.getPrixIntervention());
             pstmt.executeUpdate();
             ResultSet rs = pstmt.getGeneratedKeys();
             if (rs.next()) {
