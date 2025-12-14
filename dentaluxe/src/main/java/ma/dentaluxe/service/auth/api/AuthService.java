@@ -1,64 +1,32 @@
 package ma.dentaluxe.service.auth.api;
 
-
-import ma.dentaluxe.entities.utilisateur.Utilisateur;
-
-import java.util.List;
+import ma.dentaluxe.service.auth.dto.LoginRequest;
+import ma.dentaluxe.service.auth.dto.LoginResponse;
 
 public interface AuthService {
 
     /**
-     * Authentifier un utilisateur
+     * Authentifie un utilisateur
      */
-    Utilisateur authenticate(String login, String password);
+    LoginResponse authenticate(LoginRequest request);
 
     /**
-     * Déconnecter un utilisateur
+     * Valide une session
      */
-    void logout(Long userId);
+    boolean validateSession(String sessionId);
 
     /**
-     * Vérifier si un utilisateur est connecté
+     * Extrait l'ID utilisateur d'une session
      */
-    boolean isAuthenticated(Long userId);
+    Long getUserIdFromSession(String sessionId);
 
     /**
-     * Obtenir le rôle principal d'un utilisateur
+     * Génère une nouvelle session pour un utilisateur
      */
-    String getUserRole(Long userId);
+    String generateSession(Long userId, String email);
 
     /**
-     * Obtenir tous les rôles d'un utilisateur
+     * Révoque une session
      */
-    List<String> getUserRoles(Long userId);
-
-    /**
-     * Vérifier les permissions
-     */
-    boolean hasPermission(Long userId, String permission);
-
-    /**
-     * Changer le mot de passe
-     */
-    boolean changePassword(Long userId, String oldPassword, String newPassword);
-
-    /**
-     * Réinitialiser le mot de passe (admin seulement)
-     */
-    boolean resetPassword(Long userId, String newPassword);
-
-    /**
-     * Vérifier la validité de session
-     */
-    boolean isSessionValid(Long userId);
-
-    /**
-     * Obtenir l'utilisateur connecté
-     */
-    Utilisateur getCurrentUser();
-
-    /**
-     * Définir l'utilisateur connecté
-     */
-    void setCurrentUser(Utilisateur user);
+    void revokeSession(String sessionId);
 }

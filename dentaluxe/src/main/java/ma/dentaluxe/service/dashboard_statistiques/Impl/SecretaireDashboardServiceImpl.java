@@ -1,8 +1,8 @@
-package ma.dentaluxe.service.dashboard.Impl;
+package ma.dentaluxe.service.dashboard_statistiques.Impl;
 
 import ma.dentaluxe.entities.utilisateur.Utilisateur;
 import ma.dentaluxe.repository.modules.agenda.api.RDVRepository;
-import ma.dentaluxe.service.dashboard.api.DashboardService;
+import ma.dentaluxe.service.dashboard_statistiques.api.DashboardService;
 import ma.dentaluxe.repository.modules.dashboard.api.DashboardRepository;
 import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
 import ma.dentaluxe.repository.modules.caisse.api.FactureRepository;

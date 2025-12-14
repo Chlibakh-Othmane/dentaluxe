@@ -1,4 +1,4 @@
-package ma.dentaluxe.service.dashboard.api;
+package ma.dentaluxe.service.dashboard_statistiques.api;
 
 import ma.dentaluxe.entities.utilisateur.Utilisateur;
 import java.util.Map;

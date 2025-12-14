@@ -188,12 +188,12 @@ Chaque package contient :
 ---
 
 ## 👨‍💻 Équipe projet
-| Étudiant | Rôle | Email |
-|-----------|------|------|
-| Étudiant 1 | ...  | ... |
-| Étudiant 2 | ...  | ... |
-| Étudiant 3 | ...  | ... |
-| Étudiant 4 | ...  | ... |
+| Étudiant    | Rôle                                                                                                                | Email                  |
+|-------------|---------------------------------------------------------------------------------------------------------------------|------------------------|
+| Sara Nabil  | * Repos (Auth , Dashboard , User_Manager)<br/>* J’ai réalisé un test global couvrant l’ensemble des repositories<br/> * Services(Auth, Dashboard) et Test des services  | nabilsara202@gmail.com |
+| Étudiant 2  | ...                                                                                                                 | ...                    |
+| Étudiant 3  | ...                                                                                                                 | ...                    |
+| Étudiant 4  | ...                                                                                                                 | ...                    |
 
 ---
 
