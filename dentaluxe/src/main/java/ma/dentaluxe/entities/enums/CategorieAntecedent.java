@@ -1,5 +1,5 @@
 package ma.dentaluxe.entities.enums;
 
 public enum CategorieAntecedent {
-    MALADIE, ALLERGIE, CHIRURGIE, AUTRE
+    MALADIE, ALLERGIE, CHIRURGIE, MEDICAL, CHIRURGICAL, FAMILIAL, AUTRE
 }

@@ -18,7 +18,7 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
     @Override
     public List<Antecedent> findAll() {
         List<Antecedent> antecedents = new ArrayList<>();
-        String sql = "SELECT * FROM antecedent ORDER BY nom";
+        String sql = "SELECT * FROM antecedents ORDER BY nom";
 
         try (Connection conn = Db.getConnection();
              Statement stmt = conn.createStatement();
@@ -28,39 +28,14 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
                 antecedents.add(mapResultSetToAntecedent(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Erreur dans findAll: " + e.getMessage());
         }
         return antecedents;
     }
 
     @Override
-    public Object findById(Object o) {
-        return null;
-    }
-
-    @Override
-    public void create(Object patient) {
-
-    }
-
-    @Override
-    public void update(Object patient) {
-
-    }
-
-    @Override
-    public void delete(Object patient) {
-
-    }
-
-    @Override
-    public void deleteById(Object o) {
-
-    }
-
-    @Override
     public Antecedent findById(Long id) {
-        String sql = "SELECT * FROM antecedent WHERE id = ?";
+        String sql = "SELECT * FROM antecedents WHERE id = ?";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -72,38 +47,49 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
                 return mapResultSetToAntecedent(rs);
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Erreur dans findById: " + e.getMessage());
         }
         return null;
     }
 
     @Override
     public void create(Antecedent antecedent) {
-        String sql = "INSERT INTO antecedent (nom, categorie, niveau_risque, date_creation) VALUES (?, ?, ?, ?)";
+
+        String sql = "INSERT INTO antecedents (idDM, nom, categorie, niveauDeRisque) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = Db.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             PreparedStatement pstmt = conn.prepareStatement(
+                     sql,
+                     Statement.RETURN_GENERATED_KEYS
+             )) {
 
-            pstmt.setString(1, antecedent.getNom());
-            pstmt.setString(2, antecedent.getCategorie().name());
-            pstmt.setString(3, antecedent.getNiveauRisque().name());
-            pstmt.setDate(4, Date.valueOf(LocalDate.now()));
+            if (antecedent.getIdDM() != null) {
+                pstmt.setLong(1, antecedent.getIdDM());
+            } else {
+                pstmt.setNull(1, Types.INTEGER);
+            }
+
+            pstmt.setString(2, antecedent.getNom());
+            pstmt.setString(3, String.valueOf(antecedent.getCategorie()));
+            pstmt.setString(4, antecedent.getNiveauRisque().name());
 
             pstmt.executeUpdate();
 
-            // Récupérer l'ID généré
-            ResultSet rs = pstmt.getGeneratedKeys();
-            if (rs.next()) {
-                antecedent.setId(rs.getLong(1));
+            try (ResultSet keys = pstmt.getGeneratedKeys()) {
+                if (keys.next()) {
+                    antecedent.setIdAntecedent(keys.getLong(1));
+                }
             }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
+
     @Override
     public void update(Antecedent antecedent) {
-        String sql = "UPDATE antecedent SET nom = ?, categorie = ?, niveau_risque = ? WHERE id = ?";
+        String sql = "UPDATE antecedents SET nom = ?, categorie = ?, niveauDeRisque = ? WHERE id = ?";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -113,9 +99,27 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
             pstmt.setString(3, antecedent.getNiveauRisque().name());
             pstmt.setLong(4, antecedent.getId());
 
-            pstmt.executeUpdate();
+            int affectedRows = pstmt.executeUpdate();
+            System.out.println("Antécédent mis à jour: " + affectedRows + " ligne(s) affectée(s)");
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Erreur dans update: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void deleteById(Long id) {
+        String sql = "DELETE FROM antecedents WHERE id = ?";
+
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, id);
+            int affectedRows = pstmt.executeUpdate();
+            System.out.println("Antécédent supprimé: " + affectedRows + " ligne(s) affectée(s)");
+
+        } catch (SQLException e) {
+            System.err.println("Erreur dans deleteById: " + e.getMessage());
         }
     }
 
@@ -124,35 +128,12 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
         deleteById(antecedent.getId());
     }
 
-    @Override
-    public void deleteById(Long id) {
-        // D'abord supprimer les associations
-        String sqlDeleteAssociations = "DELETE FROM patient_antecedent WHERE antecedent_id = ?";
-        String sqlDeleteAntecedent = "DELETE FROM antecedent WHERE id = ?";
-
-        try (Connection conn = Db.getConnection()) {
-            // Supprimer les associations
-            try (PreparedStatement pstmt1 = conn.prepareStatement(sqlDeleteAssociations)) {
-                pstmt1.setLong(1, id);
-                pstmt1.executeUpdate();
-            }
-
-            // Supprimer l'antécédent
-            try (PreparedStatement pstmt2 = conn.prepareStatement(sqlDeleteAntecedent)) {
-                pstmt2.setLong(1, id);
-                pstmt2.executeUpdate();
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-    }
-
-    // ==================== MÉTHODES SPÉCIFIQUES ====================
+    // ==================== MÉTHODES SPÉCIFIQUES SIMPLIFIÉES ====================
 
     @Override
     public List<Antecedent> findByNom(String nom) {
         List<Antecedent> antecedents = new ArrayList<>();
-        String sql = "SELECT * FROM antecedent WHERE nom LIKE ? ORDER BY nom";
+        String sql = "SELECT * FROM antecedents WHERE nom LIKE ? ORDER BY nom";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -164,7 +145,7 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
                 antecedents.add(mapResultSetToAntecedent(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Erreur dans findByNom: " + e.getMessage());
         }
         return antecedents;
     }
@@ -172,7 +153,7 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
     @Override
     public List<Antecedent> findByCategorie(CategorieAntecedent categorie) {
         List<Antecedent> antecedents = new ArrayList<>();
-        String sql = "SELECT * FROM antecedent WHERE categorie = ? ORDER BY nom";
+        String sql = "SELECT * FROM antecedents WHERE categorie = ? ORDER BY nom";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -184,7 +165,7 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
                 antecedents.add(mapResultSetToAntecedent(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Erreur dans findByCategorie: " + e.getMessage());
         }
         return antecedents;
     }
@@ -192,7 +173,7 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
     @Override
     public List<Antecedent> findByNiveauRisque(NiveauRisque niveauRisque) {
         List<Antecedent> antecedents = new ArrayList<>();
-        String sql = "SELECT * FROM antecedent WHERE niveau_risque = ? ORDER BY nom";
+        String sql = "SELECT * FROM antecedents WHERE niveauDeRisque = ? ORDER BY nom";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -204,105 +185,43 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
                 antecedents.add(mapResultSetToAntecedent(rs));
             }
         } catch (SQLException e) {
-            e.printStackTrace();
+            System.err.println("Erreur dans findByNiveauRisque: " + e.getMessage());
         }
         return antecedents;
     }
 
+    // ==================== MÉTHODES AVEC TABLES DE JOINTURE ====================
+    // Si vous n'avez pas les tables de jointure, ces méthodes ne fonctionneront pas
+    // Il faut soit les créer, soit modifier votre modèle de données
+
     @Override
     public List<Antecedent> findByPatientId(Long patientId) {
-        List<Antecedent> antecedents = new ArrayList<>();
-        String sql = """
-            SELECT a.* FROM antecedent a
-            INNER JOIN patient_antecedent pa ON a.id = pa.antecedent_id
-            WHERE pa.patient_id = ?
-            ORDER BY a.nom
-            """;
-
-        try (Connection conn = Db.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setLong(1, patientId);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                antecedents.add(mapResultSetToAntecedent(rs));
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return antecedents;
+        System.err.println("ATTENTION: Méthode findByPatientId non implémentée - table patient_antecedent manquante");
+        System.err.println("Soit créer la table patient_antecedent, soit modifier votre modèle de données");
+        return new ArrayList<>();
     }
 
     @Override
     public void addAntecedentToPatient(Long patientId, Long antecedentId, String notes) {
-        String sql = "INSERT INTO patient_antecedent (patient_id, antecedent_id, notes, date_association) VALUES (?, ?, ?, ?)";
-
-        try (Connection conn = Db.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setLong(1, patientId);
-            pstmt.setLong(2, antecedentId);
-            pstmt.setString(3, notes != null ? notes : "");
-            pstmt.setDate(4, Date.valueOf(LocalDate.now()));
-
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        System.err.println("ATTENTION: Méthode addAntecedentToPatient non implémentée - table patient_antecedent manquante");
+        System.err.println("Soit créer la table patient_antecedent, soit modifier votre modèle de données");
     }
 
     @Override
     public void removeAntecedentFromPatient(Long patientId, Long antecedentId) {
-        String sql = "DELETE FROM patient_antecedent WHERE patient_id = ? AND antecedent_id = ?";
-
-        try (Connection conn = Db.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setLong(1, patientId);
-            pstmt.setLong(2, antecedentId);
-
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        System.err.println("ATTENTION: Méthode removeAntecedentFromPatient non implémentée - table patient_antecedent manquante");
+        System.err.println("Soit créer la table patient_antecedent, soit modifier votre modèle de données");
     }
 
     @Override
     public String getNotesForPatient(Long patientId, Long antecedentId) {
-        String sql = "SELECT notes FROM patient_antecedent WHERE patient_id = ? AND antecedent_id = ?";
-
-        try (Connection conn = Db.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setLong(1, patientId);
-            pstmt.setLong(2, antecedentId);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) {
-                return rs.getString("notes");
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        System.err.println("ATTENTION: Méthode getNotesForPatient non implémentée - table patient_antecedent manquante");
         return "";
     }
 
     @Override
     public void updateNotesForPatient(Long patientId, Long antecedentId, String notes) {
-        String sql = "UPDATE patient_antecedent SET notes = ? WHERE patient_id = ? AND antecedent_id = ?";
-
-        try (Connection conn = Db.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-
-            pstmt.setString(1, notes);
-            pstmt.setLong(2, patientId);
-            pstmt.setLong(3, antecedentId);
-
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+        System.err.println("ATTENTION: Méthode updateNotesForPatient non implémentée - table patient_antecedent manquante");
     }
 
     // ==================== MÉTHODE UTILITAIRE ====================
@@ -312,8 +231,45 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
                 .id(rs.getLong("id"))
                 .nom(rs.getString("nom"))
                 .categorie(CategorieAntecedent.valueOf(rs.getString("categorie")))
-                .niveauRisque(NiveauRisque.valueOf(rs.getString("niveau_risque")))
-                .dateCreation(rs.getDate("date_creation") != null ? rs.getDate("date_creation").toLocalDate() : null)
+                .niveauRisque(NiveauRisque.valueOf(rs.getString("niveauDeRisque")))
                 .build();
+    }
+
+    // ==================== IMPLÉMENTATION DES MÉTHODES GÉNÉRIQUES ====================
+
+    @Override
+    public Object findById(Object o) {
+        if (o instanceof Long) {
+            return findById((Long) o);
+        }
+        return null;
+    }
+
+    @Override
+    public void create(Object entity) {
+        if (entity instanceof Antecedent) {
+            create((Antecedent) entity);
+        }
+    }
+
+    @Override
+    public void update(Object entity) {
+        if (entity instanceof Antecedent) {
+            update((Antecedent) entity);
+        }
+    }
+
+    @Override
+    public void delete(Object entity) {
+        if (entity instanceof Antecedent) {
+            delete((Antecedent) entity);
+        }
+    }
+
+    @Override
+    public void deleteById(Object id) {
+        if (id instanceof Long) {
+            deleteById((Long) id);
+        }
     }
 }

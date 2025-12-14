@@ -39,5 +39,15 @@ public class Antecedent extends BaseEntity {
                 patients == null ? 0 : patients.size()
         );
     }
+
+    public void setIdAntecedent(long aLong) {
+    }
+
+    private Long idDM;
+
+    public Long getIdDM() {
+        return idDM;
+    }
+
 }
 
