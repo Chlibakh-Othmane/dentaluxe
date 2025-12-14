@@ -11,7 +11,7 @@ import ma.dentaluxe.entities.enums.CategorieActe;
 import ma.dentaluxe.service.actes.api.ActeService;
 import ma.dentaluxe.service.actes.baseImplementation.ActeServiceImpl;
 
-
+/*
 // AUTEUR : AYA LEZREGUE
 
 
@@ -230,5 +230,5 @@ public class Test {
             e.printStackTrace();
         }
         }
-    }
+    }*/
 

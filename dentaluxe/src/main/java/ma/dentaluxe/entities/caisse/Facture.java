@@ -1,4 +1,4 @@
-package ma.dentaluxe.entities.finance;
+package ma.dentaluxe.entities.caisse;
 
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;

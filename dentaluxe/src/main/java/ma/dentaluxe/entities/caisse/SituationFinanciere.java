@@ -1,4 +1,4 @@
-package ma.dentaluxe.entities.finance;
+package ma.dentaluxe.entities.caisse;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,8 +1,7 @@
 package ma.dentaluxe.repository.modules.caisse.inMemDB_implementation;
 
 import ma.dentaluxe.conf.Db;
-import ma.dentaluxe.entities.finance.Facture;
-import ma.dentaluxe.entities.finance.SituationFinanciere;
+import ma.dentaluxe.entities.caisse.SituationFinanciere;
 import ma.dentaluxe.entities.enums.StatutSituationFinanciere;
 import ma.dentaluxe.repository.modules.caisse.api.SituationFinanciereRepository;
 import java.sql.*;

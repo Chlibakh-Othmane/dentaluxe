@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/dentaluxe/dentaluxe.iml" filepath="$PROJECT_DIR$/dentaluxe/dentaluxe.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/dentaluxe[1].iml" filepath="$PROJECT_DIR$/.idea/dentaluxe[1].iml" />
     </modules>
   </component>

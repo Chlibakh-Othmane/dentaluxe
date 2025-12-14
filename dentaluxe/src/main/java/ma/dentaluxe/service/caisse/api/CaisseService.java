@@ -1,36 +1,23 @@
-// AUTEUR : AYA BAKIR
 package ma.dentaluxe.service.caisse.api;
 
-import ma.dentaluxe.entities.finance.Facture;
-import ma.dentaluxe.entities.finance.SituationFinanciere;
-import ma.dentaluxe.entities.enums.StatutFacture;
-import ma.dentaluxe.entities.enums.StatutSituationFinanciere;
-
+import ma.dentaluxe.mvc.dto.caisse.*; // Assure-toi que ChargeDTO et RevenuDTO sont bien là
 import java.util.List;
 
 public interface CaisseService {
 
-    // ========== Gestion de la Situation Financière ==========
-    void initSituationFinanciere(Long idDossierMedical);
-    SituationFinanciere getSituationByDossier(Long idDossierMedical);
-    void updateSituation(SituationFinanciere sf);
+    // --- FACTURES & SITUATION ---
+    SituationFinanciereDTO initSituation(Long idDM);
+    SituationFinanciereDTO getSituationByDossier(Long idDM);
+    FactureDTO creerFacture(FactureDTO dto);
+    FactureDTO getFactureById(Long id);
+    List<FactureDTO> getFacturesByDossier(Long idSF);
+    void payerFacture(Long idFacture, double montant);
 
-    // ========== Gestion des Factures ==========
-    void creerFacture(Facture facture);
-    Facture getFactureById(Long id);
-    Facture getFactureByConsultation(Long idConsultation);
-    List<Facture> getAllFactures();
-    List<Facture> getFacturesByStatut(StatutFacture statut);
+    // --- GESTION FINANCIÈRE (Charges & Revenus) ---
+    // C'est cette partie qui manquait dans ton interface !
+    void ajouterCharge(ChargeDTO dto);
+    List<ChargeDTO> getAllCharges();
 
-    // ========== Traitement des Paiements ==========
-    /**
-     * Enregistre un paiement pour une facture donnée.
-     * Met à jour la facture (montant payé, reste, statut)
-     * ET la situation financière globale du patient.
-     */
-    void traiterPaiement(Long idFacture, double montantVerse);
-
-    // ========== Statistiques Financières ==========
-    double getChiffreAffairesTotal();
-    double getTotalImpayes();
+    void ajouterRevenu(RevenuDTO dto);
+    List<RevenuDTO> getAllRevenus();
 }
