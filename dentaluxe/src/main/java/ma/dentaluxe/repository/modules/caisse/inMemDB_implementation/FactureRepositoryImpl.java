@@ -48,30 +48,63 @@ public class FactureRepositoryImpl  implements FactureRepository{
 
     @Override
     public void create(Facture facture) {
-        String sql = "INSERT INTO facture (idSF, idConsultation, totalFacture, totalDesActes, " +
-                "montantPaye, reste, statut) VALUES (?, ?, ?, ?, ?, ?, ?)";
+
+        // 🔐 Sécurités métier indispensables
+        if (facture == null) {
+            throw new IllegalArgumentException("Facture null");
+        }
+        if (facture.getIdConsultation() == null) {
+            throw new IllegalStateException("idConsultation obligatoire pour créer une facture");
+        }
+        if (facture.getTotalDesActes() == null) {
+            facture.setTotalDesActes(0.0); // sécurité minimale
+        }
+        if (facture.getMontantPaye() == null) {
+            facture.setMontantPaye(0.0);
+        }
+
+        // Calcul automatique du reste si non fourni
+        if (facture.getTotalFacture() == null) {
+            facture.setTotalFacture(facture.getTotalDesActes());
+        }
+        facture.setReste(facture.getTotalFacture() - facture.getMontantPaye());
+
+        String sql = """
+        INSERT INTO facture
+        (idSF, idConsultation, totalFacture, totalDesActes, montantPaye, reste, statut)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """;
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            pstmt.setLong(1, facture.getIdSF());
-            pstmt.setObject(2, facture.getIdConsultation(), Types.BIGINT);
-            pstmt.setDouble(3, facture.getTotalFacture());
-            pstmt.setDouble(4, facture.getTotalDesActes());
-            pstmt.setDouble(5, facture.getMontantPaye());
-            pstmt.setDouble(6, facture.getReste());
-            pstmt.setString(7, facture.getStatut().name());
+            // idSF peut être null
+            if (facture.getIdSF() != null) {
+                pstmt.setLong(1, facture.getIdSF());
+            } else {
+                pstmt.setNull(1, Types.BIGINT);
+            }
+
+            pstmt.setLong(2, facture.getIdConsultation());      // obligatoire
+            pstmt.setDouble(3, facture.getTotalFacture());      // jamais null
+            pstmt.setDouble(4, facture.getTotalDesActes());     // jamais null
+            pstmt.setDouble(5, facture.getMontantPaye());       // jamais null
+            pstmt.setDouble(6, facture.getReste());             // calculé
+            pstmt.setString(7, facture.getStatut().name());     // ENUM
 
             pstmt.executeUpdate();
 
-            ResultSet rs = pstmt.getGeneratedKeys();
-            if (rs.next()) {
-                facture.setIdFacture(rs.getLong(1));
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    facture.setIdFacture(rs.getLong(1));
+                }
             }
+
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Erreur lors de la création de la facture", e);
         }
     }
+
 
     @Override
     public void update(Facture facture) {

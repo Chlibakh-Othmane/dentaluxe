@@ -1,414 +1,592 @@
 package ma.dentaluxe.service.TestSara;
 
-
-
-
-import ma.dentaluxe.conf.Db;
-import ma.dentaluxe.entities.utilisateur.Utilisateur;
-import ma.dentaluxe.repository.modules.auth.inMemDB_implementation.AuthRepositoryImpl;
-
-import ma.dentaluxe.service.auth.api.AuthService;
-import ma.dentaluxe.service.auth.Impl.AuthServiceImpl;
-
-import java.sql.Connection;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Scanner;
+import ma.dentaluxe.service.auth.Impl.*;
+import ma.dentaluxe.service.auth.api.*;
+import ma.dentaluxe.service.auth.dto.*;
+import ma.dentaluxe.service.auth.exception.*;
 
 public class TestAuth {
 
-    private static Scanner scanner = new Scanner(System.in);
+    private static AuthorizationService authorizationService;
     private static AuthService authService;
-    private static AuthRepositoryImpl authRepo;
+    private static PasswordEncoder passwordEncoder;
+    private static CredentialsValidator validator;
+    private static UserServiceImpl userService;
+
+    private static int testsPassed = 0;
+    private static int testsFailed = 0;
+    private static int totalTests = 0;
 
     public static void main(String[] args) {
-        System.out.println("╔═══════════════════════════════════════════════════════╗");
-        System.out.println("║           🔐 TEST SERVICE AUTHENTIFICATION           ║");
-        System.out.println("╚═══════════════════════════════════════════════════════╝\n");
+        System.out.println("╔════════════════════════════════════════════════════════════════╗");
+        System.out.println("║   TESTS DU SERVICE D'AUTHENTIFICATION DENTALUXE                ║");
+        System.out.println("╚════════════════════════════════════════════════════════════════╝");
+        System.out.println();
 
         // Initialisation
-        testConnexionBDD();
-        initializeServices();
+        initServices();
 
-        int choix;
-        do {
-            afficherMenu();
-            System.out.print("Votre choix (0-10): ");
-            choix = scanner.nextInt();
-            scanner.nextLine();
+        // Exécution des tests
+        testUserRegistration();
+        testDuplicateEmailDetection();
+        testCredentialsValidation();
+        testSuccessfulLogin();
+        testLoginWithWrongPassword();
+        testLoginWithNonExistentEmail();
+        testSessionValidation();
+        testGetUserProfile();
+        testEmailExistence();
+        testPasswordChange();
+        testPasswordChangeWithWrongOldPassword();
+        testLogout();
+        testPasswordEncoding();
+        testRegistrationWithInvalidData();
+        testMultipleSessions();
 
-            traiterChoix(choix);
-
-            if (choix != 0) {
-                System.out.print("\nAppuyez sur Entrée pour continuer...");
-                scanner.nextLine();
-            }
-
-        } while (choix != 0);
-
-        scanner.close();
+        // Résumé final
+        printSummary();
     }
 
-    private static void testConnexionBDD() {
-        try (Connection conn = Db.getConnection()) {
-            if (conn != null && !conn.isClosed()) {
-                System.out.println("✓ Connexion à la base de données réussie!");
-            } else {
-                System.out.println("✗ Échec de connexion à la base de données");
-                System.exit(1);
-            }
+    private static void initServices() {
+        System.out.println("═══ INITIALISATION DES SERVICES ═══");
+        try {
+            authService = new AuthServiceImpl();
+            passwordEncoder = new PasswordEncoderImpl();
+            validator = new CredentialsValidatorImpl();
+            authorizationService = new AuthorizationServiceImpl(authService, passwordEncoder, validator);
+            userService = new UserServiceImpl(authorizationService);
+
+            System.out.println("✓ Services initialisés avec succès\n");
         } catch (Exception e) {
-            System.out.println("✗ Erreur de connexion: " + e.getMessage());
+            System.out.println("✗ Erreur lors de l'initialisation: " + e.getMessage());
             System.exit(1);
         }
     }
 
-    private static void initializeServices() {
-        authRepo = new AuthRepositoryImpl();
-        authService = new AuthServiceImpl(authRepo);
-        System.out.println("✓ Services initialisés avec succès!\n");
-    }
+    private static void testUserRegistration() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 1: Inscription d'un nouvel utilisateur");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-    private static void afficherMenu() {
-        System.out.println("\n=== MENU TEST AUTH SERVICE ===");
-        System.out.println("1.  Tester l'authentification");
-        System.out.println("2.  Tester la déconnexion");
-        System.out.println("3.  Tester vérification session");
-        System.out.println("4.  Tester récupération rôle");
-        System.out.println("5.  Tester vérification permissions");
-        System.out.println("6.  Tester changement mot de passe");
-        System.out.println("7.  Tester réinitialisation mot de passe");
-        System.out.println("8.  Tester validité session");
-        System.out.println("9.  Tester utilisateur courant");
-        System.out.println("10. Tester toutes les fonctionnalités");
-        System.out.println("0.  Quitter");
-        System.out.println("==============================");
-    }
+        try {
+            RegisterRequest request = new RegisterRequest(
+                    "Dr. Ahmed Bennani",
+                    "ahmed.bennani@dentaluxe.ma",
+                    "DentalPass123@",
+                    "DentalPass123@",
+                    "0612345678"
+            );
 
-    private static void traiterChoix(int choix) {
-        switch (choix) {
-            case 1: testerAuthentification(); break;
-            case 2: testerDeconnexion(); break;
-            case 3: testerVerificationSession(); break;
-            case 4: testerRecuperationRole(); break;
-            case 5: testerVerificationPermissions(); break;
-            case 6: testerChangementMotDePasse(); break;
-            case 7: testerReinitialisationMotDePasse(); break;
-            case 8: testerValiditeSession(); break;
-            case 9: testerUtilisateurCourant(); break;
-            case 10: testerToutesFonctionnalites(); break;
-            case 0: System.out.println("Au revoir!"); break;
-            default: System.out.println("Choix invalide!");
+            UserResponse user = authorizationService.register(request);
+
+            assert user != null : "L'utilisateur ne doit pas être null";
+            assert user.getId() != null : "L'ID doit être généré";
+            assert "Dr. Ahmed Bennani".equals(user.getUsername()) : "Username incorrect";
+            assert "ahmed.bennani@dentaluxe.ma".equals(user.getEmail()) : "Email incorrect";
+            assert user.isActive() : "L'utilisateur doit être actif";
+
+            System.out.println("✓ Utilisateur inscrit: " + user.getUsername());
+            System.out.println("✓ Email: " + user.getEmail());
+            System.out.println("✓ ID: " + user.getId());
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
         }
     }
 
-    private static void testerAuthentification() {
-        System.out.println("\n=== TEST AUTHENTIFICATION ===");
+    private static void testDuplicateEmailDetection() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 2: Détection d'email déjà existant");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-        System.out.print("Login: ");
-        String login = scanner.nextLine();
+        try {
+            RegisterRequest duplicateRequest = new RegisterRequest(
+                    "Autre Utilisateur",
+                    "ahmed.bennani@dentaluxe.ma",
+                    "Password123@",
+                    "Password123@",
+                    "0698765432"
+            );
 
-        System.out.print("Mot de passe: ");
-        String password = scanner.nextLine();
-
-        Utilisateur user = authService.authenticate(login, password);
-
-        if (user != null) {
-            System.out.println("\n✅ Authentification réussie!");
-            System.out.println("Utilisateur: " + user.getNom() + " " + user.getPrenom());
-            System.out.println("ID: " + user.getId());
-            System.out.println("Login: " + user.getLogin());
-            System.out.println("Email: " + user.getEmail());
-            System.out.println("Actif: " + (user.getActif() ? "Oui" : "Non"));
-        } else {
-            System.out.println("\n❌ Authentification échouée!");
-        }
-    }
-
-    private static void testerDeconnexion() {
-        System.out.println("\n=== TEST DÉCONNEXION ===");
-
-        Utilisateur currentUser = authService.getCurrentUser();
-        if (currentUser == null) {
-            System.out.println("❌ Aucun utilisateur connecté");
-            return;
-        }
-
-        System.out.println("Utilisateur actuel: " + currentUser.getNom() + " " + currentUser.getPrenom());
-        System.out.print("Confirmer la déconnexion (oui/non)? ");
-        String confirmation = scanner.nextLine();
-
-        if (confirmation.equalsIgnoreCase("oui")) {
-            authService.logout(currentUser.getId());
-            System.out.println("✅ Déconnexion effectuée");
-
-            // Vérification
-            boolean stillConnected = authService.isAuthenticated(currentUser.getId());
-            System.out.println("Session toujours active? " + (stillConnected ? "Oui" : "Non"));
-        } else {
-            System.out.println("❌ Déconnexion annulée");
-        }
-    }
-
-    private static void testerVerificationSession() {
-        System.out.println("\n=== TEST VÉRIFICATION SESSION ===");
-
-        Utilisateur currentUser = authService.getCurrentUser();
-        if (currentUser == null) {
-            System.out.println("❌ Aucun utilisateur connecté");
-            System.out.println("Veuillez d'abord vous authentifier");
-            testerAuthentification();
-            currentUser = authService.getCurrentUser();
-        }
-
-        if (currentUser != null) {
-            boolean isAuth = authService.isAuthenticated(currentUser.getId());
-            System.out.println("Utilisateur: " + currentUser.getNom() + " " + currentUser.getPrenom());
-            System.out.println("Session authentifiée? " + (isAuth ? "✅ Oui" : "❌ Non"));
-
-            if (!isAuth) {
-                System.out.println("⚠ La session a probablement expiré");
+            try {
+                authorizationService.register(duplicateRequest);
+                System.out.println("✗ TEST ÉCHOUÉ: Exception attendue non levée\n");
+                testsFailed++;
+            } catch (UserAlreadyExistsException e) {
+                System.out.println("✓ Email dupliqué détecté correctement");
+                System.out.println("✓ Message: " + e.getMessage());
+                System.out.println("✓ TEST RÉUSSI\n");
+                testsPassed++;
             }
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
         }
     }
 
-    private static void testerRecuperationRole() {
-        System.out.println("\n=== TEST RÉCUPÉRATION RÔLE ===");
+    private static void testCredentialsValidation() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 3: Validation des credentials");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-        Utilisateur currentUser = authService.getCurrentUser();
-        if (currentUser == null) {
-            System.out.println("❌ Aucun utilisateur connecté");
-            System.out.print("Voulez-vous spécifier un ID utilisateur? (oui/non): ");
-            String choix = scanner.nextLine();
+        try {
+            // Test email
+            assert !validator.isValidEmail("email-invalide") : "Email invalide accepté";
+            assert !validator.isValidEmail("@example.com") : "Email sans nom accepté";
+            assert validator.isValidEmail("valid@example.com") : "Email valide rejeté";
 
-            if (choix.equalsIgnoreCase("oui")) {
-                System.out.print("ID utilisateur: ");
-                Long userId = scanner.nextLong();
-                scanner.nextLine();
+            // Test mot de passe
+            assert !validator.isValidPassword("faible") : "Mot de passe faible accepté";
+            assert !validator.isValidPassword("12345678") : "Mot de passe sans lettre accepté";
+            assert validator.isValidPassword("StrongPass123@") : "Mot de passe fort rejeté";
 
-                String role = authService.getUserRole(userId);
-                System.out.println("Rôle de l'utilisateur " + userId + ": " + role);
+            // Test nom d'utilisateur
+            assert !validator.isValidUsername("AB") : "Nom trop court accepté";
+            assert validator.isValidUsername("John Doe") : "Nom valide rejeté";
 
-                List<String> roles = authService.getUserRoles(userId);
-                System.out.println("Tous les rôles: " + roles);
+            System.out.println("✓ Validation d'email: OK");
+            System.out.println("✓ Validation de mot de passe: OK");
+            System.out.println("✓ Validation de nom d'utilisateur: OK");
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (AssertionError | Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
+    }
+
+    private static void testSuccessfulLogin() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 4: Connexion avec credentials valides");
+        System.out.println("─────────────────────────────────────────────────────────────");
+
+        try {
+            LoginRequest loginRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "DentalPass123@"
+            );
+
+            LoginResponse response = authorizationService.login(loginRequest);
+
+            assert response != null : "Réponse nulle";
+            assert response.getSessionId() != null : "Session non générée";
+            assert "ahmed.bennani@dentaluxe.ma".equals(response.getEmail()) : "Email incorrect";
+
+            System.out.println("✓ Connexion réussie pour: " + response.getUsername());
+            System.out.println("✓ Session ID: " + response.getSessionId());
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
+    }
+
+    private static void testLoginWithWrongPassword() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 5: Connexion avec mot de passe incorrect");
+        System.out.println("─────────────────────────────────────────────────────────────");
+
+        try {
+            LoginRequest wrongPasswordRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "WrongPassword123@"
+            );
+
+            try {
+                authorizationService.login(wrongPasswordRequest);
+                System.out.println("✗ TEST ÉCHOUÉ: Exception attendue non levée\n");
+                testsFailed++;
+            } catch (InvalidCredentialsException e) {
+                System.out.println("✓ Mot de passe incorrect détecté");
+                System.out.println("✓ Message: " + e.getMessage());
+                System.out.println("✓ TEST RÉUSSI\n");
+                testsPassed++;
             }
-        } else {
-            String role = authService.getUserRole(currentUser.getId());
-            System.out.println("Utilisateur: " + currentUser.getNom() + " " + currentUser.getPrenom());
-            System.out.println("Rôle principal: " + role);
-
-            List<String> roles = authService.getUserRoles(currentUser.getId());
-            System.out.println("Tous les rôles: " + roles);
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
         }
     }
 
-    private static void testerVerificationPermissions() {
-        System.out.println("\n=== TEST VÉRIFICATION PERMISSIONS ===");
+    private static void testLoginWithNonExistentEmail() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 6: Connexion avec email inexistant");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-        Utilisateur currentUser = authService.getCurrentUser();
-        if (currentUser == null) {
-            System.out.println("❌ Aucun utilisateur connecté");
-            return;
-        }
+        try {
+            LoginRequest nonExistentRequest = new LoginRequest(
+                    "inexistant@dentaluxe.ma",
+                    "Password123@"
+            );
 
-        System.out.println("Utilisateur: " + currentUser.getNom() + " " + currentUser.getPrenom());
-        String role = authService.getUserRole(currentUser.getId());
-        System.out.println("Rôle: " + role);
-
-        // Tester différentes permissions selon le rôle
-        System.out.println("\n🔍 Test des permissions:");
-
-        if ("ADMIN".equalsIgnoreCase(role)) {
-            testPermission(currentUser.getId(), "user.create", "Créer utilisateur");
-            testPermission(currentUser.getId(), "patient.all", "Gérer tous les patients");
-            testPermission(currentUser.getId(), "dashboard.all", "Accès dashboard complet");
-        } else if ("MEDECIN".equalsIgnoreCase(role)) {
-            testPermission(currentUser.getId(), "patient.view", "Voir patients");
-            testPermission(currentUser.getId(), "ordonnance.create", "Créer ordonnance");
-            testPermission(currentUser.getId(), "user.create", "Créer utilisateur (admin seulement)");
-        } else if ("SECRETAIRE".equalsIgnoreCase(role)) {
-            testPermission(currentUser.getId(), "patient.create", "Créer patient");
-            testPermission(currentUser.getId(), "rdv.create", "Créer RDV");
-            testPermission(currentUser.getId(), "payment.create", "Enregistrer paiement");
+            try {
+                authorizationService.login(nonExistentRequest);
+                System.out.println("✗ TEST ÉCHOUÉ: Exception attendue non levée\n");
+                testsFailed++;
+            } catch (InvalidCredentialsException e) {
+                System.out.println("✓ Email inexistant détecté");
+                System.out.println("✓ Message: " + e.getMessage());
+                System.out.println("✓ TEST RÉUSSI\n");
+                testsPassed++;
+            }
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
         }
     }
 
-    private static void testPermission(Long userId, String permission, String description) {
-        boolean hasPermission = authService.hasPermission(userId, permission);
-        System.out.println("  " + (hasPermission ? "✅" : "❌") + " " + description +
-                " (" + permission + "): " + (hasPermission ? "Autorisé" : "Refusé"));
+    private static void testSessionValidation() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 7: Validation de session");
+        System.out.println("─────────────────────────────────────────────────────────────");
+
+        try {
+            LoginRequest loginRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "DentalPass123@"
+            );
+
+            LoginResponse response = authorizationService.login(loginRequest);
+            String sessionId = response.getSessionId();
+
+            assert authorizationService.validateSession(sessionId) : "Session valide rejetée";
+            assert !authorizationService.validateSession("session-invalide") : "Session invalide acceptée";
+            assert !authorizationService.validateSession(null) : "Session null acceptée";
+
+            System.out.println("✓ Session active validée: " + sessionId);
+            System.out.println("✓ Sessions invalides rejetées");
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
     }
 
-    private static void testerChangementMotDePasse() {
-        System.out.println("\n=== TEST CHANGEMENT MOT DE PASSE ===");
+    private static void testGetUserProfile() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 8: Récupération du profil utilisateur");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-        Utilisateur currentUser = authService.getCurrentUser();
-        if (currentUser == null) {
-            System.out.println("❌ Aucun utilisateur connecté");
-            return;
+        try {
+            // On récupère l'utilisateur via son email
+            LoginRequest loginRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "DentalPass123@"
+            );
+            LoginResponse loginResponse = authorizationService.login(loginRequest);
+
+            UserResponse profile = userService.getUserProfile(loginResponse.getUserId());
+
+            assert profile != null : "Profil null";
+            assert "ahmed.bennani@dentaluxe.ma".equals(profile.getEmail()) : "Email incorrect";
+
+            System.out.println("✓ Profil récupéré: " + profile.getUsername());
+            System.out.println("✓ Email: " + profile.getEmail());
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
         }
-
-        System.out.println("Utilisateur: " + currentUser.getNom() + " " + currentUser.getPrenom());
-
-        System.out.print("Ancien mot de passe: ");
-        String oldPassword = scanner.nextLine();
-
-        System.out.print("Nouveau mot de passe: ");
-        String newPassword = scanner.nextLine();
-
-        System.out.print("Confirmer nouveau mot de passe: ");
-        String confirmPassword = scanner.nextLine();
-
-        if (!newPassword.equals(confirmPassword)) {
-            System.out.println("❌ Les mots de passe ne correspondent pas");
-            return;
-        }
-
-        boolean success = authService.changePassword(currentUser.getId(), oldPassword, newPassword);
-        System.out.println(success ? "✅ Mot de passe changé avec succès" : "❌ Échec du changement");
     }
 
-    private static void testerReinitialisationMotDePasse() {
-        System.out.println("\n=== TEST RÉINITIALISATION MOT DE PASSE ===");
+    private static void testEmailExistence() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 9: Vérification d'existence d'email");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-        // Simuler un admin
-        System.out.println("⚠ Cette fonction nécessite des droits ADMIN");
+        try {
+            assert userService.isEmailTaken("ahmed.bennani@dentaluxe.ma") : "Email existant non détecté";
+            assert !userService.isEmailTaken("nouveau@dentaluxe.ma") : "Email disponible marqué comme pris";
 
-        // Vérifier si l'utilisateur courant est admin
-        Utilisateur currentUser = authService.getCurrentUser();
-        if (currentUser != null) {
-            String role = authService.getUserRole(currentUser.getId());
-            if (!"ADMIN".equalsIgnoreCase(role)) {
-                System.out.println("❌ Permission refusée: Admin requis");
+            System.out.println("✓ Email existant: ahmed.bennani@dentaluxe.ma");
+            System.out.println("✓ Email disponible: nouveau@dentaluxe.ma");
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
+    }
+
+    private static void testPasswordChange() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 10: Changement de mot de passe");
+        System.out.println("─────────────────────────────────────────────────────────────");
+
+        try {
+            LoginRequest loginRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "DentalPass123@"
+            );
+            LoginResponse loginResponse = authorizationService.login(loginRequest);
+            Long userId = loginResponse.getUserId();
+
+            ChangePasswordRequest changeRequest = new ChangePasswordRequest(
+                    "DentalPass123@",
+                    "NewDentalPass456@",
+                    "NewDentalPass456@"
+            );
+
+            authorizationService.changePassword(userId, changeRequest);
+
+            // Vérifier que l'ancien mot de passe ne fonctionne plus
+            try {
+                authorizationService.login(new LoginRequest("ahmed.bennani@dentaluxe.ma", "DentalPass123@"));
+                System.out.println("✗ TEST ÉCHOUÉ: Ancien mot de passe fonctionne encore\n");
+                testsFailed++;
                 return;
+            } catch (InvalidCredentialsException e) {
+                // C'est normal
             }
-        } else {
-            // Pour le test, simuler un admin
-            System.out.println("Simulation d'un admin pour le test...");
-            authService.setCurrentUser(createAdminUserForTest());
-        }
 
-        System.out.print("ID utilisateur à réinitialiser: ");
-        Long userId = scanner.nextLong();
-        scanner.nextLine();
+            // Vérifier que le nouveau mot de passe fonctionne
+            LoginResponse newLogin = authorizationService.login(
+                    new LoginRequest("ahmed.bennani@dentaluxe.ma", "NewDentalPass456@")
+            );
 
-        System.out.print("Nouveau mot de passe: ");
-        String newPassword = scanner.nextLine();
+            assert newLogin != null : "Connexion avec nouveau mot de passe échouée";
 
-        boolean success = authService.resetPassword(userId, newPassword);
-        System.out.println(success ? "✅ Mot de passe réinitialisé" : "❌ Échec de la réinitialisation");
-    }
-
-    private static Utilisateur createAdminUserForTest() {
-        return Utilisateur.builder()
-                .id(1L)
-                .nom("Admin")
-                .prenom("Test")
-                .login("admin_test")
-                .email("admin@test.com")
-                .actif(true)
-                .build();
-    }
-
-    private static void testerValiditeSession() {
-        System.out.println("\n=== TEST VALIDITÉ SESSION ===");
-
-        Utilisateur currentUser = authService.getCurrentUser();
-        if (currentUser == null) {
-            System.out.println("❌ Aucun utilisateur connecté");
-            return;
-        }
-
-        boolean sessionValid = authService.isSessionValid(currentUser.getId());
-        System.out.println("Utilisateur: " + currentUser.getNom() + " " + currentUser.getPrenom());
-        System.out.println("Session valide? " + (sessionValid ? "✅ Oui" : "❌ Non"));
-
-        if (sessionValid) {
-            System.out.println("La session est active et valide");
-        } else {
-            System.out.println("La session a expiré ou est invalide");
+            System.out.println("✓ Mot de passe changé avec succès");
+            System.out.println("✓ Ancien mot de passe invalidé");
+            System.out.println("✓ Nouveau mot de passe fonctionnel");
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
         }
     }
 
-    private static void testerUtilisateurCourant() {
-        System.out.println("\n=== TEST UTILISATEUR COURANT ===");
+    private static void testPasswordChangeWithWrongOldPassword() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 11: Changement avec ancien mot de passe incorrect");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-        Utilisateur currentUser = authService.getCurrentUser();
+        try {
+            LoginRequest loginRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "NewDentalPass456@"
+            );
+            LoginResponse loginResponse = authorizationService.login(loginRequest);
 
-        if (currentUser != null) {
-            System.out.println("✅ Utilisateur courant trouvé:");
-            System.out.println("   ID: " + currentUser.getId());
-            System.out.println("   Nom complet: " + currentUser.getNom() + " " + currentUser.getPrenom());
-            System.out.println("   Login: " + currentUser.getLogin());
-            System.out.println("   Email: " + currentUser.getEmail());
-            System.out.println("   Actif: " + (currentUser.getActif() ? "Oui" : "Non"));
-            System.out.println("   Rôle: " + authService.getUserRole(currentUser.getId()));
-        } else {
-            System.out.println("❌ Aucun utilisateur courant");
-            System.out.println("Voulez-vous définir un utilisateur de test? (oui/non)");
-            String choix = scanner.nextLine();
+            ChangePasswordRequest wrongOldPassword = new ChangePasswordRequest(
+                    "WrongOldPass123@",
+                    "AnotherNewPass123@",
+                    "AnotherNewPass123@"
+            );
 
-            if (choix.equalsIgnoreCase("oui")) {
-                Utilisateur testUser = Utilisateur.builder()
-                        .id(999L)
-                        .nom("Test")
-                        .prenom("Utilisateur")
-                        .login("test_user")
-                        .email("test@user.com")
-                        .actif(true)
-                        .build();
-
-                authService.setCurrentUser(testUser);
-                System.out.println("✅ Utilisateur de test défini");
-                testerUtilisateurCourant(); // Rappeler la méthode
+            try {
+                authorizationService.changePassword(loginResponse.getUserId(), wrongOldPassword);
+                System.out.println("✗ TEST ÉCHOUÉ: Exception attendue non levée\n");
+                testsFailed++;
+            } catch (InvalidCredentialsException e) {
+                System.out.println("✓ Ancien mot de passe incorrect détecté");
+                System.out.println("✓ Message: " + e.getMessage());
+                System.out.println("✓ TEST RÉUSSI\n");
+                testsPassed++;
             }
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
         }
     }
 
-    private static void testerToutesFonctionnalites() {
-        System.out.println("\n=== TEST COMPLET TOUTES LES FONCTIONNALITÉS ===\n");
+    private static void testLogout() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 12: Déconnexion");
+        System.out.println("─────────────────────────────────────────────────────────────");
 
-        System.out.println("1. Authentification d'un utilisateur test...");
-        // Créer un utilisateur test si nécessaire
-        System.out.println("Login: admin");
-        System.out.println("Mot de passe: admin123");
+        try {
+            LoginRequest loginRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "NewDentalPass456@"
+            );
 
-        Utilisateur testUser = authService.authenticate("admin", "admin123");
-        if (testUser == null) {
-            System.out.println("⚠ Authentification échouée, utilisation d'un utilisateur simulé");
-            testUser = createAdminUserForTest();
-            authService.setCurrentUser(testUser);
+            LoginResponse response = authorizationService.login(loginRequest);
+            String sessionId = response.getSessionId();
+
+            assert authorizationService.validateSession(sessionId) : "Session invalide avant déconnexion";
+
+            authorizationService.logout(sessionId);
+
+            assert !authorizationService.validateSession(sessionId) : "Session valide après déconnexion";
+
+            System.out.println("✓ Déconnexion réussie");
+            System.out.println("✓ Session invalidée: " + sessionId);
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
+    }
+
+    private static void testPasswordEncoding() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 13: Encodage de mot de passe");
+        System.out.println("─────────────────────────────────────────────────────────────");
+
+        try {
+            String rawPassword = "TestPassword123@";
+
+            String encoded1 = passwordEncoder.encode(rawPassword);
+            String encoded2 = passwordEncoder.encode(rawPassword);
+
+            assert encoded1 != null : "Encodage null";
+            assert !rawPassword.equals(encoded1) : "Mot de passe en clair";
+            assert !encoded1.equals(encoded2) : "Encodages identiques";
+            assert passwordEncoder.matches(rawPassword, encoded1) : "Correspondance échouée";
+            assert !passwordEncoder.matches("WrongPassword", encoded1) : "Mauvais mot de passe accepté";
+
+            System.out.println("✓ Encodage unique avec salt aléatoire");
+            System.out.println("✓ Vérification de mot de passe fonctionnelle");
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
+    }
+
+    private static void testRegistrationWithInvalidData() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 14: Inscription avec données invalides");
+        System.out.println("─────────────────────────────────────────────────────────────");
+
+        try {
+            int errorsDetected = 0;
+
+            // Email invalide
+            try {
+                RegisterRequest invalidEmail = new RegisterRequest(
+                        "User", "email-invalide", "Password123@", "Password123@", "0612345678"
+                );
+                authorizationService.register(invalidEmail);
+            } catch (AuthException e) {
+                errorsDetected++;
+            }
+
+            // Mot de passe faible
+            try {
+                RegisterRequest weakPassword = new RegisterRequest(
+                        "User", "user@example.com", "weak", "weak", "0612345678"
+                );
+                authorizationService.register(weakPassword);
+            } catch (AuthException e) {
+                errorsDetected++;
+            }
+
+            // Mots de passe non correspondants
+            try {
+                RegisterRequest mismatchPassword = new RegisterRequest(
+                        "User", "user2@example.com", "Password123@", "DifferentPass123@", "0612345678"
+                );
+                authorizationService.register(mismatchPassword);
+            } catch (AuthException e) {
+                errorsDetected++;
+            }
+
+            // Nom d'utilisateur trop court
+            try {
+                RegisterRequest shortUsername = new RegisterRequest(
+                        "AB", "user3@example.com", "Password123@", "Password123@", "0612345678"
+                );
+                authorizationService.register(shortUsername);
+            } catch (AuthException e) {
+                errorsDetected++;
+            }
+
+            assert errorsDetected == 4 : "Toutes les erreurs n'ont pas été détectées";
+
+            System.out.println("✓ Email invalide rejeté");
+            System.out.println("✓ Mot de passe faible rejeté");
+            System.out.println("✓ Mots de passe non correspondants rejetés");
+            System.out.println("✓ Nom d'utilisateur invalide rejeté");
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
+    }
+
+    private static void testMultipleSessions() {
+        totalTests++;
+        System.out.println("─────────────────────────────────────────────────────────────");
+        System.out.println("TEST 15: Gestion de sessions multiples");
+        System.out.println("─────────────────────────────────────────────────────────────");
+
+        try {
+            LoginRequest loginRequest = new LoginRequest(
+                    "ahmed.bennani@dentaluxe.ma",
+                    "NewDentalPass456@"
+            );
+
+            LoginResponse session1 = authorizationService.login(loginRequest);
+            LoginResponse session2 = authorizationService.login(loginRequest);
+            LoginResponse session3 = authorizationService.login(loginRequest);
+
+            assert !session1.getSessionId().equals(session2.getSessionId()) : "Sessions identiques";
+            assert !session2.getSessionId().equals(session3.getSessionId()) : "Sessions identiques";
+
+            assert authorizationService.validateSession(session1.getSessionId()) : "Session 1 invalide";
+            assert authorizationService.validateSession(session2.getSessionId()) : "Session 2 invalide";
+            assert authorizationService.validateSession(session3.getSessionId()) : "Session 3 invalide";
+
+            authorizationService.logout(session1.getSessionId());
+
+            assert !authorizationService.validateSession(session1.getSessionId()) : "Session 1 encore valide";
+            assert authorizationService.validateSession(session2.getSessionId()) : "Session 2 affectée";
+            assert authorizationService.validateSession(session3.getSessionId()) : "Session 3 affectée";
+
+            System.out.println("✓ Sessions multiples créées: 3");
+            System.out.println("✓ Chaque session est unique");
+            System.out.println("✓ Déconnexion sélective fonctionnelle");
+            System.out.println("✓ TEST RÉUSSI\n");
+            testsPassed++;
+        } catch (Exception e) {
+            System.out.println("✗ TEST ÉCHOUÉ: " + e.getMessage() + "\n");
+            testsFailed++;
+        }
+    }
+
+    private static void printSummary() {
+        System.out.println("╔════════════════════════════════════════════════════════════════╗");
+        System.out.println("║                      RÉSUMÉ DES TESTS                          ║");
+        System.out.println("╠════════════════════════════════════════════════════════════════╣");
+        System.out.println("║  Total de tests    : " + String.format("%-42d", totalTests) + "║");
+        System.out.println("║  Tests réussis     : " + String.format("%-42d", testsPassed) + "║");
+        System.out.println("║  Tests échoués     : " + String.format("%-42d", testsFailed) + "║");
+        System.out.println("╠════════════════════════════════════════════════════════════════╣");
+
+        double successRate = (testsPassed * 100.0) / totalTests;
+
+        if (testsFailed == 0) {
+            System.out.println("║  ✓✓✓ TOUS LES TESTS ONT RÉUSSI ! ✓✓✓                          ║");
+            System.out.println("║  Service d'authentification DentalLuxe validé à 100%          ║");
+        } else {
+            System.out.println("║  Taux de réussite  : " + String.format("%.2f%%", successRate) + "                                      ║");
         }
 
-        System.out.println("\n2. Test de toutes les méthodes:");
-
-        // Test 1: Vérification session
-        boolean isAuth = authService.isAuthenticated(testUser.getId());
-        System.out.println("   • Session authentifiée: " + (isAuth ? "✅" : "❌"));
-
-        // Test 2: Récupération rôle
-        String role = authService.getUserRole(testUser.getId());
-        System.out.println("   • Rôle utilisateur: " + role);
-
-        // Test 3: Vérification permissions
-        boolean hasUserCreate = authService.hasPermission(testUser.getId(), "user.create");
-        System.out.println("   • Permission 'user.create': " + (hasUserCreate ? "✅" : "❌"));
-
-        // Test 4: Validité session
-        boolean sessionValid = authService.isSessionValid(testUser.getId());
-        System.out.println("   • Session valide: " + (sessionValid ? "✅" : "❌"));
-
-        // Test 5: Utilisateur courant
-        Utilisateur current = authService.getCurrentUser();
-        System.out.println("   • Utilisateur courant: " +
-                (current != null ? current.getNom() + " " + current.getPrenom() : "❌ Aucun"));
-
-        // Test 6: Déconnexion
-        System.out.println("\n3. Test déconnexion...");
-        authService.logout(testUser.getId());
-        boolean stillConnected = authService.isAuthenticated(testUser.getId());
-        System.out.println("   • Déconnexion effectuée: " + (!stillConnected ? "✅" : "❌"));
-
-        System.out.println("\n✅ Test complet terminé!");
+        System.out.println("╚════════════════════════════════════════════════════════════════╝");
     }
 }

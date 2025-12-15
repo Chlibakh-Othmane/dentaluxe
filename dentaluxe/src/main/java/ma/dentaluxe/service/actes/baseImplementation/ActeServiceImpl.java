@@ -100,7 +100,7 @@ public class ActeServiceImpl implements ActeService {
         }
 
         acteRepository.deleteById(id);
-        System.out.println("🗑 Acte supprimé (ID: " + id + ")");
+        System.out.println("🗑️ Acte supprimé (ID: " + id + ")");
     }
 
     // ========== Recherche et filtres ==========

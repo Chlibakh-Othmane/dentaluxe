@@ -130,6 +130,7 @@ public class SituationFinanciereRepositoryImpl implements  SituationFinanciereRe
             pstmt.setDouble(5, sf.getCreance());
             pstmt.setString(6, sf.getStatut().name());
             pstmt.setBoolean(7, sf.getEnPromo());
+            pstmt.setLong(8, sf.getIdSF());
 
             pstmt.executeUpdate();
 
