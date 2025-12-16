@@ -25,7 +25,9 @@ public class CaisseServiceImpl implements CaisseService {
         }
         SituationFinanciere sf = new SituationFinanciere();
         sf.setIdDM(idDM);
-        sf.setTotalDesActes(0.0); sf.setTotalPaye(0.0); sf.setResteDu(0.0);
+        sf.setCreance(0.0);
+        sf.setTotalDesActes(0.0); sf.setTotalPaye(0.0); sf.setResteDu(0.0); sf.setEnPromo(false);
+
         sf.setStatut(StatutSituationFinanciere.SOLDE);
         sfRepo.create(sf);
         return mapSFToDTO(sf);

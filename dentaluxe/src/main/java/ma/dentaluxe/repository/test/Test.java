@@ -2,6 +2,7 @@ package ma.dentaluxe.repository.test;
 
 import ma.dentaluxe.conf.ApplicationContext;
 import ma.dentaluxe.conf.Db;
+import ma.dentaluxe.entities.acte.Acte;
 import ma.dentaluxe.entities.enums.*;
 import ma.dentaluxe.entities.patient.Patient;
 import ma.dentaluxe.entities.dossier.DossierMedical;
@@ -35,7 +36,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * AUTEUR : AYA LEZREGUE
+ * AUTEUR : AYA LEZREGUE  & BAKIR AYA
  * Test complet des repositories avec Injection de Dépendances via ApplicationContext
  */
 public class Test {

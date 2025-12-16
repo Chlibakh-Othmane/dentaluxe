@@ -8,7 +8,7 @@ public class MainTestAya {
         Scanner scanner = new Scanner(System.in);
 
         System.out.println("==========================================");
-        System.out.println("   APPLICATION DENTALSOFT - TESTS AYA");
+        System.out.println("   APPLICATION DENTALUXE - TESTS AYA");
         System.out.println("==========================================");
 
         boolean running = true;
