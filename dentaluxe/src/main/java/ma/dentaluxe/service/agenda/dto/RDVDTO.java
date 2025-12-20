@@ -1,4 +1,4 @@
-package ma.dentaluxe.mvc.dto;
+package ma.dentaluxe.service.agenda.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

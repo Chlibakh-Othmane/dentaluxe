@@ -1,6 +1,6 @@
 package ma.dentaluxe.service.certificat.api;
 
-import ma.dentaluxe.mvc.dto.CertificatDTO;
+import ma.dentaluxe.service.certificat.dto.CertificatDTO;
 
 import java.time.LocalDate;
 import java.util.List;

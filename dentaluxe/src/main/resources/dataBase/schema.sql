@@ -277,3 +277,16 @@ CREATE TABLE IF NOT EXISTS Statistiques (
                                             dateCalcul DATE DEFAULT CURRENT_TIMESTAMP,
                                             CONSTRAINT fk_stats_cabinet FOREIGN KEY (idCabinet) REFERENCES CabinetMedical(idUser) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS antecedent_patient (
+                                                  idAntecedent BIGINT NOT NULL,
+                                                  idPatient BIGINT NOT NULL,
+                                                  dateAjout DATE DEFAULT (CURRENT_DATE),
+                                                  actif BOOLEAN DEFAULT TRUE,
+                                                  notes TEXT,
+                                                  PRIMARY KEY (idAntecedent, idPatient),
+                                                  CONSTRAINT fk_antpat_antecedent FOREIGN KEY (idAntecedent)
+                                                      REFERENCES Antecedents(idAntecedent) ON DELETE CASCADE,
+                                                  CONSTRAINT fk_antpat_patient FOREIGN KEY (idPatient)
+                                                      REFERENCES Patient(idPatient) ON DELETE CASCADE
+);

@@ -17,7 +17,6 @@ public class ApplicationContext {
                 System.err.println(" ERREUR CRITIQUE : Le fichier '/config/beans.properties' est introuvable !");
                 System.err.println(" Vérifiez que le dossier 'resources' est bien marqué comme 'Resources Root'.");
                 System.err.println(" Faites 'Build > Rebuild Project' pour copier le fichier dans target/classes.");
-                // On ne lance pas d'exception ici pour voir les autres erreurs, mais le programme ne marchera pas
             } else {
                 props.load(input);
                 System.out.println(" beans.properties chargé. Nombre de beans : " + props.size());
