@@ -1,6 +1,6 @@
 package ma.dentaluxe.service.testLezregue;
 
-import ma.dentaluxe.mvc.dto.ActeDTO;
+import ma.dentaluxe.service.actes.dto.ActeDTO;
 import ma.dentaluxe.entities.acte.Acte;
 import ma.dentaluxe.entities.enums.CategorieActe;
 import ma.dentaluxe.repository.modules.actes.api.ActeRepository;

@@ -1,10 +1,13 @@
 // AUTEUR : AYA LEZREGUE
 package ma.dentaluxe.service.agenda.baseImplementation;
-import ma.dentaluxe.mvc.dto.RDVDTO;
+
+import ma.dentaluxe.service.agenda.dto.RDVDTO;
 import ma.dentaluxe.entities.rdv.RDV;
 import ma.dentaluxe.entities.enums.StatutRDV;
 import ma.dentaluxe.repository.modules.agenda.api.RDVRepository;
 import ma.dentaluxe.service.agenda.api.AgendaService;
+// Importation des nouvelles exceptions
+import ma.dentaluxe.service.agenda.exception.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -26,12 +29,12 @@ public class AgendaServiceImpl implements AgendaService {
     public RDVDTO createRDV(RDVDTO rdvDTO) {
         // Validation
         if (!validateRDV(rdvDTO)) {
-            throw new IllegalArgumentException("RDV invalide : données manquantes");
+            throw new InvalidAgendaDataException("RDV invalide : données obligatoires manquantes (Patient, Médecin, Date ou Heure)");
         }
 
         // Vérifier disponibilité du créneau
         if (hasConflict(rdvDTO.getIdMedecin(), rdvDTO.getDateRDV(), rdvDTO.getHeureRDV())) {
-            throw new IllegalStateException("Créneau déjà occupé pour ce médecin");
+            throw new RDVConflictException("Le médecin est déjà occupé le " + rdvDTO.getDateRDV() + " à " + rdvDTO.getHeureRDV());
         }
 
         // Par défaut, le statut est PLANIFIE
@@ -45,7 +48,7 @@ public class AgendaServiceImpl implements AgendaService {
         // Créer le RDV
         rdvRepository.create(rdv);
 
-        System.out.println("✅ RDV créé avec succès (ID: " + rdv.getIdRDV() + ")");
+        System.out.println(" RDV créé avec succès (ID: " + rdv.getIdRDV() + ")");
 
         return convertToDTO(rdv);
     }
@@ -53,12 +56,12 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public RDVDTO getRDVById(Long id) {
         if (id == null) {
-            throw new IllegalArgumentException("L'ID ne peut pas être null");
+            throw new InvalidAgendaDataException("L'ID du rendez-vous ne peut pas être null");
         }
 
         RDV rdv = rdvRepository.findById(id);
         if (rdv == null) {
-            throw new IllegalStateException("RDV introuvable (ID: " + id + ")");
+            throw new RDVNotFoundException(id);
         }
 
         return convertToDTO(rdv);
@@ -74,25 +77,24 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public RDVDTO updateRDV(RDVDTO rdvDTO) {
         if (rdvDTO == null || rdvDTO.getIdRDV() == null) {
-            throw new IllegalArgumentException("RDV ou ID invalide");
+            throw new InvalidAgendaDataException("RDV ou ID invalide pour la mise à jour");
         }
 
         // Vérifier que le RDV existe
-        RDV existing = rdvRepository.findById(rdvDTO.getIdRDV());
-        if (existing == null) {
-            throw new IllegalStateException("RDV introuvable (ID: " + rdvDTO.getIdRDV() + ")");
+        if (!rdvExists(rdvDTO.getIdRDV())) {
+            throw new RDVNotFoundException(rdvDTO.getIdRDV());
         }
 
-        // Validation
+        // Validation des données
         if (!validateRDV(rdvDTO)) {
-            throw new IllegalArgumentException("RDV invalide : données manquantes");
+            throw new InvalidAgendaDataException("Données de mise à jour du RDV incomplètes");
         }
 
         // Convertir et mettre à jour
         RDV rdv = convertToEntity(rdvDTO);
         rdvRepository.update(rdv);
 
-        System.out.println("✅ RDV mis à jour (ID: " + rdv.getIdRDV() + ")");
+        System.out.println(" RDV mis à jour (ID: " + rdv.getIdRDV() + ")");
 
         return convertToDTO(rdv);
     }
@@ -100,15 +102,15 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public void deleteRDV(Long id) {
         if (id == null) {
-            throw new IllegalArgumentException("L'ID ne peut pas être null");
+            throw new InvalidAgendaDataException("L'ID ne peut pas être null");
         }
 
         if (!rdvExists(id)) {
-            throw new IllegalStateException("RDV introuvable (ID: " + id + ")");
+            throw new RDVNotFoundException(id);
         }
 
         rdvRepository.deleteById(id);
-        System.out.println("🗑️ RDV supprimé (ID: " + id + ")");
+        System.out.println("🗑 RDV supprimé (ID: " + id + ")");
     }
 
     @Override
@@ -121,7 +123,7 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public List<RDVDTO> getRDVByDate(LocalDate date) {
         if (date == null) {
-            throw new IllegalArgumentException("La date ne peut pas être null");
+            throw new InvalidAgendaDataException("La date de recherche ne peut pas être null");
         }
 
         return rdvRepository.findByDate(date).stream()
@@ -132,7 +134,7 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public List<RDVDTO> getRDVByMedecin(Long idMedecin) {
         if (idMedecin == null) {
-            throw new IllegalArgumentException("L'ID médecin ne peut pas être null");
+            throw new InvalidAgendaDataException("L'ID médecin est requis pour le filtrage");
         }
 
         return rdvRepository.findByMedecinId(idMedecin).stream()
@@ -143,7 +145,7 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public List<RDVDTO> getRDVByPatient(Long idDM) {
         if (idDM == null) {
-            throw new IllegalArgumentException("L'ID dossier médical ne peut pas être null");
+            throw new InvalidAgendaDataException("L'ID du dossier médical est requis pour le filtrage");
         }
 
         return rdvRepository.findByPatientDossierId(idDM).stream()
@@ -154,7 +156,7 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public List<RDVDTO> getRDVByStatut(StatutRDV statut) {
         if (statut == null) {
-            throw new IllegalArgumentException("Le statut ne peut pas être null");
+            throw new InvalidAgendaDataException("Le statut est requis pour le filtrage");
         }
 
         return rdvRepository.findByStatut(statut).stream()
@@ -165,10 +167,10 @@ public class AgendaServiceImpl implements AgendaService {
     @Override
     public List<RDVDTO> getRDVByDateRange(LocalDate debut, LocalDate fin) {
         if (debut == null || fin == null) {
-            throw new IllegalArgumentException("Les dates ne peuvent pas être null");
+            throw new InvalidAgendaDataException("Les dates de début et de fin sont requises");
         }
         if (debut.isAfter(fin)) {
-            throw new IllegalArgumentException("La date de début doit être avant la date de fin");
+            throw new InvalidAgendaDataException("La date de début doit être antérieure à la date de fin");
         }
 
         return rdvRepository.findByDateRange(debut, fin).stream()
@@ -176,108 +178,14 @@ public class AgendaServiceImpl implements AgendaService {
                 .collect(Collectors.toList());
     }
 
-    @Override
-    public List<RDVDTO> getRDVByMedecinAndDate(Long idMedecin, LocalDate date) {
-        if (idMedecin == null || date == null) {
-            throw new IllegalArgumentException("L'ID médecin et la date ne peuvent pas être null");
-        }
-
-        return rdvRepository.findByDate(date).stream()
-                .filter(rdv -> rdv.getIdMedecin().equals(idMedecin))
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    // ========== Statistiques ==========
-
-    @Override
-    public int countRDVToday() {
-        return getRDVByDate(LocalDate.now()).size();
-    }
-
-    @Override
-    public int countRDVByDate(LocalDate date) {
-        return getRDVByDate(date).size();
-    }
-
-    @Override
-    public int countRDVByStatut(StatutRDV statut) {
-        return getRDVByStatut(statut).size();
-    }
-
-    @Override
-    public int countRDVByMedecin(Long idMedecin) {
-        return getRDVByMedecin(idMedecin).size();
-    }
-
-    @Override
-    public int countRDVByPatient(Long idDM) {
-        return getRDVByPatient(idDM).size();
-    }
-
-    @Override
-    public List<MedecinStatDTO> getStatistiquesByMedecin() {
-        Map<Long, List<RDVDTO>> rdvsByMedecin = getAllRDV().stream()
-                .collect(Collectors.groupingBy(RDVDTO::getIdMedecin));
-
-        List<MedecinStatDTO> stats = new ArrayList<>();
-
-        for (Map.Entry<Long, List<RDVDTO>> entry : rdvsByMedecin.entrySet()) {
-            Long idMedecin = entry.getKey();
-            List<RDVDTO> rdvs = entry.getValue();
-
-            int total = rdvs.size();
-            int confirmes = (int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.CONFIRME).count();
-            int enAttente = (int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.PLANIFIE).count();
-            int annules = (int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.ANNULE).count();
-            int termines = (int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.TERMINE).count();
-            double tauxConfirmation = total > 0 ? (confirmes * 100.0 / total) : 0.0;
-
-            MedecinStatDTO stat = new MedecinStatDTO();
-            stat.setIdMedecin(idMedecin);
-            stat.setNomComplet("Médecin " + idMedecin); // À enrichir avec les vraies données
-            stat.setTotalRDV(total);
-            stat.setRdvConfirmes(confirmes);
-            stat.setRdvEnAttente(enAttente);
-            stat.setRdvAnnules(annules);
-            stat.setRdvTermines(termines);
-            stat.setTauxConfirmation(tauxConfirmation);
-
-            stats.add(stat);
-        }
-
-        return stats;
-    }
-
-    @Override
-    public List<StatutStatDTO> getStatistiquesByStatut() {
-        List<RDVDTO> allRdv = getAllRDV();
-        int total = allRdv.size();
-
-        Map<StatutRDV, Long> countByStatut = allRdv.stream()
-                .collect(Collectors.groupingBy(RDVDTO::getStatut, Collectors.counting()));
-
-        List<StatutStatDTO> stats = new ArrayList<>();
-
-        for (Map.Entry<StatutRDV, Long> entry : countByStatut.entrySet()) {
-            StatutStatDTO stat = new StatutStatDTO();
-            stat.setStatut(entry.getKey());
-            stat.setNombre(entry.getValue().intValue());
-            stat.setPourcentage(total > 0 ? (entry.getValue() * 100.0 / total) : 0.0);
-            stats.add(stat);
-        }
-
-        return stats;
-    }
-
     // ========== Gestion du statut ==========
 
     @Override
     public RDVDTO confirmerRDV(Long idRDV) {
-        RDVDTO rdvDTO = getRDVById(idRDV);
+        RDVDTO rdvDTO = getRDVById(idRDV); // Lancera RDVNotFoundException si inexistant
 
         if (rdvDTO.getStatut() == StatutRDV.ANNULE) {
-            throw new IllegalStateException("Impossible de confirmer un RDV annulé");
+            throw new RDVStatusException("Impossible de confirmer un rendez-vous déjà annulé.");
         }
 
         rdvDTO.setStatut(StatutRDV.CONFIRME);
@@ -285,7 +193,7 @@ public class AgendaServiceImpl implements AgendaService {
         RDV rdv = convertToEntity(rdvDTO);
         rdvRepository.update(rdv);
 
-        System.out.println("✅ RDV confirmé (ID: " + idRDV + ")");
+        System.out.println(" RDV confirmé (ID: " + idRDV + ")");
 
         return convertToDTO(rdv);
     }
@@ -295,7 +203,7 @@ public class AgendaServiceImpl implements AgendaService {
         RDVDTO rdvDTO = getRDVById(idRDV);
 
         if (rdvDTO.getStatut() == StatutRDV.TERMINE) {
-            throw new IllegalStateException("Impossible d'annuler un RDV terminé");
+            throw new RDVStatusException("Impossible d'annuler un rendez-vous déjà terminé.");
         }
 
         rdvDTO.setStatut(StatutRDV.ANNULE);
@@ -303,7 +211,7 @@ public class AgendaServiceImpl implements AgendaService {
         RDV rdv = convertToEntity(rdvDTO);
         rdvRepository.update(rdv);
 
-        System.out.println("❌ RDV annulé (ID: " + idRDV + ")");
+        System.out.println(" RDV annulé (ID: " + idRDV + ")");
 
         return convertToDTO(rdv);
     }
@@ -313,7 +221,7 @@ public class AgendaServiceImpl implements AgendaService {
         RDVDTO rdvDTO = getRDVById(idRDV);
 
         if (rdvDTO.getStatut() == StatutRDV.ANNULE) {
-            throw new IllegalStateException("Impossible de terminer un RDV annulé");
+            throw new RDVStatusException("Impossible de marquer comme terminé un rendez-vous annulé.");
         }
 
         rdvDTO.setStatut(StatutRDV.TERMINE);
@@ -321,7 +229,7 @@ public class AgendaServiceImpl implements AgendaService {
         RDV rdv = convertToEntity(rdvDTO);
         rdvRepository.update(rdv);
 
-        System.out.println("✅ RDV terminé (ID: " + idRDV + ")");
+        System.out.println(" RDV terminé (ID: " + idRDV + ")");
 
         return convertToDTO(rdv);
     }
@@ -331,12 +239,12 @@ public class AgendaServiceImpl implements AgendaService {
         RDVDTO rdvDTO = getRDVById(idRDV);
 
         if (rdvDTO.getStatut() == StatutRDV.TERMINE || rdvDTO.getStatut() == StatutRDV.ANNULE) {
-            throw new IllegalStateException("Impossible de reporter un RDV terminé ou annulé");
+            throw new RDVStatusException("Impossible de reporter un rendez-vous terminé ou annulé.");
         }
 
         // Vérifier disponibilité du nouveau créneau
         if (hasConflict(rdvDTO.getIdMedecin(), nouvelleDate, nouvelleHeure)) {
-            throw new IllegalStateException("Le nouveau créneau est déjà occupé");
+            throw new RDVConflictException("Le nouveau créneau (" + nouvelleDate + " à " + nouvelleHeure + ") est déjà occupé.");
         }
 
         rdvDTO.setDateRDV(nouvelleDate);
@@ -345,7 +253,7 @@ public class AgendaServiceImpl implements AgendaService {
         RDV rdv = convertToEntity(rdvDTO);
         rdvRepository.update(rdv);
 
-        System.out.println("📅 RDV reporté au " + nouvelleDate + " à " + nouvelleHeure);
+        System.out.println(" RDV reporté au " + nouvelleDate + " à " + nouvelleHeure);
 
         return convertToDTO(rdv);
     }
@@ -365,129 +273,34 @@ public class AgendaServiceImpl implements AgendaService {
                 .collect(Collectors.toList());
 
         for (RDV rdv : rdvsDuJour) {
-            // Vérifier si le créneau est dans une plage de 30 minutes
+            // Seuil de 30 minutes entre rendez-vous
             long minutesDiff = Math.abs(ChronoUnit.MINUTES.between(rdv.getHeureRDV(), heure));
             if (minutesDiff < 30) {
-                return true; // Conflit détecté
+                return true;
             }
         }
-
-        return false; // Pas de conflit
+        return false;
     }
 
     @Override
     public boolean validateRDV(RDVDTO rdvDTO) {
         if (rdvDTO == null) return false;
-        if (rdvDTO.getIdDM() == null) return false;
-        if (rdvDTO.getIdMedecin() == null) return false;
-        if (rdvDTO.getDateRDV() == null) return false;
-        if (rdvDTO.getHeureRDV() == null) return false;
-
-        return true;
+        return rdvDTO.getIdDM() != null &&
+                rdvDTO.getIdMedecin() != null &&
+                rdvDTO.getDateRDV() != null &&
+                rdvDTO.getHeureRDV() != null;
     }
 
     @Override
     public boolean rdvExists(Long id) {
         if (id == null) return false;
-        try {
-            return rdvRepository.findById(id) != null;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    // ========== Recherches avancées ==========
-
-    @Override
-    public List<RDVDTO> getRDVDuJour() {
-        return getRDVByDate(LocalDate.now());
-    }
-
-    @Override
-    public List<RDVDTO> getRDVDeLaSemaine() {
-        LocalDate debut = LocalDate.now();
-        LocalDate fin = debut.plusDays(7);
-        return getRDVByDateRange(debut, fin);
-    }
-
-    @Override
-    public List<RDVDTO> getRDVDuMois() {
-        LocalDate debut = LocalDate.now().withDayOfMonth(1);
-        LocalDate fin = debut.plusMonths(1).minusDays(1);
-        return getRDVByDateRange(debut, fin);
-    }
-
-    @Override
-    public List<RDVDTO> getRDVAVenir(Long idMedecin) {
-        LocalDate today = LocalDate.now();
-
-        return getRDVByMedecin(idMedecin).stream()
-                .filter(rdv -> rdv.getDateRDV().isAfter(today) ||
-                        rdv.getDateRDV().equals(today))
-                .filter(rdv -> rdv.getStatut() != StatutRDV.TERMINE &&
-                        rdv.getStatut() != StatutRDV.ANNULE)
-                .sorted(Comparator.comparing(RDVDTO::getDateRDV)
-                        .thenComparing(RDVDTO::getHeureRDV))
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<RDVDTO> getRDVPasses(Long idMedecin) {
-        LocalDate today = LocalDate.now();
-
-        return getRDVByMedecin(idMedecin).stream()
-                .filter(rdv -> rdv.getDateRDV().isBefore(today))
-                .sorted(Comparator.comparing(RDVDTO::getDateRDV)
-                        .thenComparing(RDVDTO::getHeureRDV).reversed())
-                .collect(Collectors.toList());
-    }
-
-    @Override
-    public List<RDVDTO> getRDVEnAttente() {
-        return getRDVByStatut(StatutRDV.PLANIFIE);
-    }
-
-    @Override
-    public List<RDVDTO> getRDVAnnules() {
-        return getRDVByStatut(StatutRDV.ANNULE);
-    }
-
-    @Override
-    public List<LocalTime> getCreneauxDisponibles(Long idMedecin, LocalDate date) {
-        List<LocalTime> creneaux = new ArrayList<>();
-
-        // Horaires de travail : 9h à 18h, créneaux de 30 minutes
-        LocalTime debut = LocalTime.of(9, 0);
-        LocalTime fin = LocalTime.of(18, 0);
-
-        LocalTime current = debut;
-        while (current.isBefore(fin)) {
-            if (isCreneauDisponible(idMedecin, date, current)) {
-                creneaux.add(current);
-            }
-            current = current.plusMinutes(30);
-        }
-
-        return creneaux;
-    }
-
-    @Override
-    public RDVDTO getProchainRDV(Long idMedecin) {
-        List<RDVDTO> rdvsAVenir = getRDVAVenir(idMedecin);
-
-        if (rdvsAVenir.isEmpty()) {
-            return null;
-        }
-
-        return rdvsAVenir.get(0); // Déjà trié par date/heure dans getRDVAVenir
+        return rdvRepository.findById(id) != null;
     }
 
     // ========== Méthodes de conversion DTO <-> Entity ==========
 
     private RDVDTO convertToDTO(RDV rdv) {
-        if (rdv == null) {
-            return null;
-        }
+        if (rdv == null) return null;
 
         RDVDTO dto = RDVDTO.builder()
                 .idRDV(rdv.getIdRDV())
@@ -500,14 +313,11 @@ public class AgendaServiceImpl implements AgendaService {
                 .notes(rdv.getNoteMedecin())
                 .build();
 
-        // Enrichir le DTO avec des informations calculées
         LocalDate today = LocalDate.now();
         dto.setIsPasse(rdv.getDateRDV().isBefore(today));
         dto.setIsAujourdhui(rdv.getDateRDV().equals(today));
         dto.setIsAVenir(rdv.getDateRDV().isAfter(today));
         dto.setStatutLibelle(rdv.getStatut() != null ? rdv.getStatut().name() : null);
-
-        // Durée estimée par défaut : 30 minutes
         dto.setDureeEstimee(30);
         dto.setHeureFinEstimee(rdv.getHeureRDV().plusMinutes(30));
 
@@ -515,10 +325,7 @@ public class AgendaServiceImpl implements AgendaService {
     }
 
     private RDV convertToEntity(RDVDTO dto) {
-        if (dto == null) {
-            return null;
-        }
-
+        if (dto == null) return null;
         return RDV.builder()
                 .idRDV(dto.getIdRDV())
                 .idDM(dto.getIdDM())
@@ -529,5 +336,105 @@ public class AgendaServiceImpl implements AgendaService {
                 .motif(dto.getMotif())
                 .noteMedecin(dto.getNotes())
                 .build();
+    }
+
+    // Les méthodes statistiques (count, getStatistiques...) restent identiques
+    // car elles utilisent déjà les méthodes de recherche sécurisées ci-dessus.
+    @Override public int countRDVToday() { return getRDVByDate(LocalDate.now()).size(); }
+    @Override public int countRDVByDate(LocalDate date) { return getRDVByDate(date).size(); }
+    @Override public int countRDVByStatut(StatutRDV statut) { return getRDVByStatut(statut).size(); }
+    @Override public int countRDVByMedecin(Long idMedecin) { return getRDVByMedecin(idMedecin).size(); }
+    @Override public int countRDVByPatient(Long idDM) { return getRDVByPatient(idDM).size(); }
+    @Override public List<RDVDTO> getRDVDuJour() { return getRDVByDate(LocalDate.now()); }
+
+    @Override
+    public List<RDVDTO> getRDVDeLaSemaine() {
+        LocalDate debut = LocalDate.now();
+        return getRDVByDateRange(debut, debut.plusDays(7));
+    }
+
+    @Override
+    public List<RDVDTO> getRDVDuMois() {
+        LocalDate debut = LocalDate.now().withDayOfMonth(1);
+        return getRDVByDateRange(debut, debut.plusMonths(1).minusDays(1));
+    }
+
+    @Override
+    public List<RDVDTO> getRDVAVenir(Long idMedecin) {
+        LocalDate today = LocalDate.now();
+        return getRDVByMedecin(idMedecin).stream()
+                .filter(rdv -> !rdv.getDateRDV().isBefore(today))
+                .filter(rdv -> rdv.getStatut() != StatutRDV.TERMINE && rdv.getStatut() != StatutRDV.ANNULE)
+                .sorted(Comparator.comparing(RDVDTO::getDateRDV).thenComparing(RDVDTO::getHeureRDV))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<RDVDTO> getRDVPasses(Long idMedecin) {
+        LocalDate today = LocalDate.now();
+        return getRDVByMedecin(idMedecin).stream()
+                .filter(rdv -> rdv.getDateRDV().isBefore(today))
+                .sorted(Comparator.comparing(RDVDTO::getDateRDV).thenComparing(RDVDTO::getHeureRDV).reversed())
+                .collect(Collectors.toList());
+    }
+
+    @Override public List<RDVDTO> getRDVEnAttente() { return getRDVByStatut(StatutRDV.PLANIFIE); }
+    @Override public List<RDVDTO> getRDVAnnules() { return getRDVByStatut(StatutRDV.ANNULE); }
+    @Override public List<RDVDTO> getRDVByMedecinAndDate(Long idMedecin, LocalDate date) {
+        return getRDVByDate(date).stream().filter(r -> r.getIdMedecin().equals(idMedecin)).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<LocalTime> getCreneauxDisponibles(Long idMedecin, LocalDate date) {
+        List<LocalTime> creneaux = new ArrayList<>();
+        LocalTime current = LocalTime.of(9, 0);
+        LocalTime fin = LocalTime.of(18, 0);
+        while (current.isBefore(fin)) {
+            if (isCreneauDisponible(idMedecin, date, current)) { creneaux.add(current); }
+            current = current.plusMinutes(30);
+        }
+        return creneaux;
+    }
+
+    @Override
+    public RDVDTO getProchainRDV(Long idMedecin) {
+        List<RDVDTO> aVenir = getRDVAVenir(idMedecin);
+        return aVenir.isEmpty() ? null : aVenir.get(0);
+    }
+
+    @Override
+    public List<MedecinStatDTO> getStatistiquesByMedecin() {
+        Map<Long, List<RDVDTO>> rdvsByMedecin = getAllRDV().stream().collect(Collectors.groupingBy(RDVDTO::getIdMedecin));
+        List<MedecinStatDTO> stats = new ArrayList<>();
+        for (Map.Entry<Long, List<RDVDTO>> entry : rdvsByMedecin.entrySet()) {
+            List<RDVDTO> rdvs = entry.getValue();
+            int total = rdvs.size();
+            MedecinStatDTO stat = new MedecinStatDTO();
+            stat.setIdMedecin(entry.getKey());
+            stat.setNomComplet("Médecin " + entry.getKey());
+            stat.setTotalRDV(total);
+            stat.setRdvConfirmes((int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.CONFIRME).count());
+            stat.setRdvEnAttente((int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.PLANIFIE).count());
+            stat.setRdvAnnules((int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.ANNULE).count());
+            stat.setRdvTermines((int) rdvs.stream().filter(r -> r.getStatut() == StatutRDV.TERMINE).count());
+            stat.setTauxConfirmation(total > 0 ? (stat.getRdvConfirmes() * 100.0 / total) : 0.0);
+            stats.add(stat);
+        }
+        return stats;
+    }
+
+    @Override
+    public List<StatutStatDTO> getStatistiquesByStatut() {
+        List<RDVDTO> all = getAllRDV();
+        int total = all.size();
+        return all.stream()
+                .collect(Collectors.groupingBy(RDVDTO::getStatut, Collectors.counting()))
+                .entrySet().stream().map(e -> {
+                    StatutStatDTO s = new StatutStatDTO();
+                    s.setStatut(e.getKey());
+                    s.setNombre(e.getValue().intValue());
+                    s.setPourcentage(total > 0 ? (e.getValue() * 100.0 / total) : 0.0);
+                    return s;
+                }).collect(Collectors.toList());
     }
 }

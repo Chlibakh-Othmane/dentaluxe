@@ -1,7 +1,7 @@
 // AUTEUR : AYA LEZREGUE
 package ma.dentaluxe.service.actes.baseImplementation;
 
-import ma.dentaluxe.mvc.dto.ActeDTO;
+import ma.dentaluxe.service.actes.dto.ActeDTO;
 import ma.dentaluxe.entities.acte.Acte;
 import ma.dentaluxe.entities.enums.CategorieActe;
 import ma.dentaluxe.repository.modules.actes.api.ActeRepository;
@@ -9,6 +9,7 @@ import ma.dentaluxe.service.actes.api.ActeService;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import ma.dentaluxe.service.actes.exception.*;
 
 public class ActeServiceImpl implements ActeService {
 
@@ -24,12 +25,16 @@ public class ActeServiceImpl implements ActeService {
     public ActeDTO createActe(ActeDTO acteDTO) {
         // Validation
         if (!validateActe(acteDTO)) {
-            throw new IllegalArgumentException("Acte invalide : données manquantes ou incorrectes");
+            throw new InvalidActeDataException("Acte invalide : données manquantes ou incorrectes (Libellé, Prix, Catégorie)");
         }
 
         // Vérifier si un acte avec le même libellé existe déjà
         if (acteExistsByLibelle(acteDTO.getLibelle())) {
             throw new IllegalStateException("Un acte avec ce libellé existe déjà : " + acteDTO.getLibelle());
+        }
+        // Vérifier si un acte avec le même libellé existe déjà
+        if (acteExistsByLibelle(acteDTO.getLibelle())) {
+            throw new ActeAlreadyExistsException(acteDTO.getLibelle());
         }
 
         // Convertir DTO -> Entity
@@ -38,7 +43,7 @@ public class ActeServiceImpl implements ActeService {
         // Créer l'acte
         acteRepository.create(acte);
 
-        System.out.println("✅ Acte créé avec succès : " + acte.getLibelle() + " (ID: " + acte.getIdActe() + ")");
+        System.out.println(" Acte créé avec succès : " + acte.getLibelle() + " (ID: " + acte.getIdActe() + ")");
 
         return convertToDTO(acte);
     }
@@ -46,12 +51,12 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public ActeDTO getActeById(Long id) {
         if (id == null) {
-            throw new IllegalArgumentException("L'ID ne peut pas être null");
+            throw new InvalidActeDataException("L'ID ne peut pas être null");
         }
 
         Acte acte = acteRepository.findById(id);
         if (acte == null) {
-            throw new IllegalStateException("Acte introuvable (ID: " + id + ")");
+            throw new ActeNotFoundException(id);
         }
 
         return convertToDTO(acte);
@@ -67,24 +72,24 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public ActeDTO updateActe(ActeDTO acteDTO) {
         if (acteDTO == null || acteDTO.getIdActe() == null) {
-            throw new IllegalArgumentException("Acte ou ID invalide");
+            throw new InvalidActeDataException("Acte ou ID invalide pour la mise à jour");
         }
 
         // Vérifier que l'acte existe
         if (!acteExists(acteDTO.getIdActe())) {
-            throw new IllegalStateException("Acte introuvable (ID: " + acteDTO.getIdActe() + ")");
+            throw new ActeNotFoundException(acteDTO.getIdActe());
         }
 
         // Validation
         if (!validateActe(acteDTO)) {
-            throw new IllegalArgumentException("Acte invalide : données manquantes ou incorrectes");
+            throw new InvalidActeDataException("Mise à jour impossible : données invalides");
         }
 
         // Convertir et mettre à jour
         Acte acte = convertToEntity(acteDTO);
         acteRepository.update(acte);
 
-        System.out.println("✅ Acte mis à jour : " + acte.getLibelle());
+        System.out.println(" Acte mis à jour : " + acte.getLibelle());
 
         return convertToDTO(acte);
     }
@@ -92,15 +97,15 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public void deleteActe(Long id) {
         if (id == null) {
-            throw new IllegalArgumentException("L'ID ne peut pas être null");
+            throw new InvalidActeDataException("L'ID ne peut pas être null");
         }
 
         if (!acteExists(id)) {
-            throw new IllegalStateException("Acte introuvable (ID: " + id + ")");
+            throw new ActeNotFoundException(id);
         }
 
         acteRepository.deleteById(id);
-        System.out.println("🗑️ Acte supprimé (ID: " + id + ")");
+        System.out.println("🗑 Acte supprimé (ID: " + id + ")");
     }
 
     // ========== Recherche et filtres ==========
@@ -108,7 +113,7 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public List<ActeDTO> getActesByCategorie(CategorieActe categorie) {
         if (categorie == null) {
-            throw new IllegalArgumentException("La catégorie ne peut pas être null");
+            throw new InvalidActeDataException("La catégorie ne peut pas être null");
         }
 
         return acteRepository.findByCategorie(categorie).stream()
@@ -119,7 +124,7 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public List<ActeDTO> searchActesByLibelle(String keyword) {
         if (keyword == null || keyword.trim().isEmpty()) {
-            throw new IllegalArgumentException("Le mot-clé ne peut pas être vide");
+            throw new InvalidActeDataException("Le mot-clé de recherche ne peut pas être vide");
         }
 
         return acteRepository.searchByLibelle(keyword).stream()
@@ -130,7 +135,7 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public ActeDTO getActeByLibelle(String libelle) {
         if (libelle == null || libelle.trim().isEmpty()) {
-            throw new IllegalArgumentException("Le libellé ne peut pas être vide");
+            throw new InvalidActeDataException("Le libellé ne peut pas être vide");
         }
 
         List<Acte> actes = acteRepository.searchByLibelle(libelle);
@@ -145,10 +150,10 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public List<ActeDTO> getActesByPriceRange(double prixMin, double prixMax) {
         if (prixMin < 0 || prixMax < 0) {
-            throw new IllegalArgumentException("Les prix doivent être positifs");
+            throw new InvalidActeDataException("Les prix doivent être positifs");
         }
         if (prixMin > prixMax) {
-            throw new IllegalArgumentException("Le prix min doit être inférieur ou égal au prix max");
+            throw new InvalidActeDataException("Le prix minimum doit être inférieur au prix maximum");
         }
 
         return getAllActes().stream()
@@ -299,7 +304,7 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public ActeDTO updatePrix(Long idActe, double nouveauPrix) {
         if (nouveauPrix <= 0) {
-            throw new IllegalArgumentException("Le prix doit être supérieur à 0");
+            throw new InvalidActeDataException("Le prix doit être strictement supérieur à 0");
         }
 
         ActeDTO acteDTO = getActeById(idActe);
@@ -320,7 +325,7 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public ActeDTO applyDiscount(Long idActe, double pourcentage) {
         if (pourcentage < 0 || pourcentage > 100) {
-            throw new IllegalArgumentException("Le pourcentage doit être entre 0 et 100");
+            throw new InvalidActeDataException("Le pourcentage de remise doit être compris entre 0 et 100");
         }
 
         ActeDTO acteDTO = getActeById(idActe);
@@ -343,10 +348,10 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public List<ActeDTO> applyDiscountToCategorie(CategorieActe categorie, double pourcentage) {
         if (categorie == null) {
-            throw new IllegalArgumentException("La catégorie ne peut pas être null");
+            throw new InvalidActeDataException("La catégorie ne peut pas être null");
         }
         if (pourcentage < 0 || pourcentage > 100) {
-            throw new IllegalArgumentException("Le pourcentage doit être entre 0 et 100");
+            throw new InvalidActeDataException("Le pourcentage doit être entre 0 et 100");
         }
 
         List<ActeDTO> actesCategorie = getActesByCategorie(categorie);
@@ -365,7 +370,7 @@ public class ActeServiceImpl implements ActeService {
     @Override
     public double calculatePrixAvecRemise(Long idActe, double pourcentage) {
         if (pourcentage < 0 || pourcentage > 100) {
-            throw new IllegalArgumentException("Le pourcentage doit être entre 0 et 100");
+            throw new InvalidActeDataException("Le pourcentage doit être entre 0 et 100");
         }
 
         ActeDTO acteDTO = getActeById(idActe);

@@ -1,7 +1,7 @@
 // AUTEUR : AYA LEZREGUE
 package ma.dentaluxe.service.agenda.api;
 
-import ma.dentaluxe.mvc.dto.RDVDTO;
+import ma.dentaluxe.service.agenda.dto.RDVDTO;
 import ma.dentaluxe.entities.enums.StatutRDV;
 import java.time.LocalDate;
 import java.time.LocalTime;

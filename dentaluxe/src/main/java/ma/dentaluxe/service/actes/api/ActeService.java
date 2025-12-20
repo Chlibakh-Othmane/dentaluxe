@@ -1,6 +1,6 @@
 // AUTEUR : AYA LEZREGUE
 package ma.dentaluxe.service.actes.api;
-import ma.dentaluxe.mvc.dto.ActeDTO;
+import ma.dentaluxe.service.actes.dto.ActeDTO;
 import ma.dentaluxe.entities.enums.CategorieActe;
 
 import java.util.List;
