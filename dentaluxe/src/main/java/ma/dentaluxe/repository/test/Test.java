@@ -10,6 +10,7 @@ import ma.dentaluxe.entities.consultation.Consultation;
 import ma.dentaluxe.entities.rdv.RDV;
 import ma.dentaluxe.entities.consultation.InterventionMedecin;
 import ma.dentaluxe.entities.dossier.Antecedents;
+import ma.dentaluxe.entities.AntecedentPatient.AntecedentPatient;
 import ma.dentaluxe.entities.ordonnance.Ordonnance;
 import ma.dentaluxe.entities.ordonnance.Prescription;
 import ma.dentaluxe.entities.ordonnance.Medicament;
@@ -18,7 +19,8 @@ import ma.dentaluxe.entities.caisse.Facture;
 import ma.dentaluxe.entities.caisse.SituationFinanciere;
 import ma.dentaluxe.entities.utilisateur.Utilisateur;
 
-// --- NOUVEAUX IMPORTS : ON IMPORTE LES INTERFACES (API) ---
+// --- IMPORTS DES INTERFACES (API) ---
+import ma.dentaluxe.repository.modules.AntecedentPatient.api.AntecedentPatientRepository;
 import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
 import ma.dentaluxe.repository.modules.dossierMedical.api.*;
 import ma.dentaluxe.repository.modules.agenda.api.RDVRepository;
@@ -29,7 +31,7 @@ import ma.dentaluxe.repository.modules.medicament.api.MedicamentRepository;
 import ma.dentaluxe.repository.modules.certificat.api.CertificatRepository;
 import ma.dentaluxe.repository.modules.auth.api.AuthRepository;
 
-import java.sql.Connection;
+import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
@@ -38,11 +40,12 @@ import java.util.List;
 /**
  * AUTEUR : AYA LEZREGUE  & BAKIR AYA
  * Test complet des repositories avec Injection de Dépendances via ApplicationContext
+ * ORDRE : Cabinet → Staff → Caisse → Patient → Antécédents → Dossier → RDV → Consultation →
+ *         Actes → Intervention → SF → Facture → Ordonnance → Certificat
  */
 public class Test {
 
     // --- DÉCLARATION DES REPOSITORIES VIA LEURS INTERFACES ---
-
     private static PatientRepository patientRepo;
     private static DossierMedicalRepository dossierRepo;
     private static RDVRepository rdvRepo;
@@ -56,63 +59,189 @@ public class Test {
     private static MedicamentRepository medicamentRepo;
     private static CertificatRepository certificatRepo;
     private static AntecedentsRepository antecedentsRepo;
+    private static AntecedentPatientRepository antecedentPatientRepo;
     private static AuthRepository authRepo;
 
-    // IDs pour les tests (seront remplis pendant insertProcess)
+    // IDs pour les tests
+    private static Long idCabinet;
+    private static Long idAdmin;
+    private static Long idMedecin;
+    private static Long idSecretaire;
     private static Long idPatient;
+    private static Long idAntecedent1;
+    private static Long idAntecedent2;
     private static Long idDM;
     private static Long idRDV;
     private static Long idConsultation;
     private static Long idActe;
     private static Long idIntervention;
-    private static Long idFacture;
     private static Long idSF;
+    private static Long idFacture;
     private static Long idOrdonnance;
     private static Long idCertificat;
-    private static Long idMedecin;
 
     /**
      * BLOC STATIQUE D'INITIALISATION (INJECTION DE DÉPENDANCES)
      * Charge les implémentations définies dans beans.properties
      */
     static {
-        System.out.println("🔄 Initialisation du contexte d'application...");
+        System.out.println("Initialisation du contexte d'application...");
         try {
-            patientRepo      = (PatientRepository) ApplicationContext.getBean("patientRepo");
-            dossierRepo      = (DossierMedicalRepository) ApplicationContext.getBean("dossierRepo");
-            rdvRepo          = (RDVRepository) ApplicationContext.getBean("rdvRepo");
+            patientRepo = (PatientRepository) ApplicationContext.getBean("patientRepo");
+            dossierRepo = (DossierMedicalRepository) ApplicationContext.getBean("dossierRepo");
+            rdvRepo = (RDVRepository) ApplicationContext.getBean("rdvRepo");
             consultationRepo = (ConsultationRepository) ApplicationContext.getBean("consultationRepo");
-            acteRepo         = (ActeRepository) ApplicationContext.getBean("acteRepo");
+            acteRepo = (ActeRepository) ApplicationContext.getBean("acteRepo");
             interventionRepo = (InterventionMedecinRepository) ApplicationContext.getBean("interventionRepo");
-            factureRepo      = (FactureRepository) ApplicationContext.getBean("factureRepo");
-            sfRepo           = (SituationFinanciereRepository) ApplicationContext.getBean("sfRepo");
-            ordonnanceRepo   = (OrdonnanceRepository) ApplicationContext.getBean("ordonnanceRepo");
+            factureRepo = (FactureRepository) ApplicationContext.getBean("factureRepo");
+            sfRepo = (SituationFinanciereRepository) ApplicationContext.getBean("sfRepo");
+            ordonnanceRepo = (OrdonnanceRepository) ApplicationContext.getBean("ordonnanceRepo");
             prescriptionRepo = (PrescriptionRepository) ApplicationContext.getBean("prescriptionRepo");
-            medicamentRepo   = (MedicamentRepository) ApplicationContext.getBean("medicamentRepo");
-            certificatRepo   = (CertificatRepository) ApplicationContext.getBean("certificatRepo");
-            antecedentsRepo  = (AntecedentsRepository) ApplicationContext.getBean("antecedentsRepo");
-            authRepo         = (AuthRepository) ApplicationContext.getBean("authRepo");
+            medicamentRepo = (MedicamentRepository) ApplicationContext.getBean("medicamentRepo");
+            certificatRepo = (CertificatRepository) ApplicationContext.getBean("certificatRepo");
+            antecedentsRepo = (AntecedentsRepository) ApplicationContext.getBean("antecedentsRepo");
+            antecedentPatientRepo = (AntecedentPatientRepository) ApplicationContext.getBean("AntecedentPatientRepo");
+            authRepo = (AuthRepository) ApplicationContext.getBean("authRepo");
 
-            System.out.println("✅ Tous les repositories ont été injectés avec succès depuis beans.properties.\n");
+            System.out.println(" Tous les repositories ont été injectés avec succès depuis beans.properties.\n");
         } catch (Exception e) {
-            System.err.println("❌ Erreur critique lors de l'injection des dépendances : " + e.getMessage());
+            System.err.println(" Erreur critique lors de l'injection des dépendances : " + e.getMessage());
             e.printStackTrace();
-            System.exit(1); // Arrêt immédiat si la config échoue
+            System.exit(1);
         }
     }
 
     /**
      * PROCESSUS D'INSERTION COMPLET
-     * Suit le flux métier : Patient -> DM -> RDV -> Consultation -> Actes -> Facture -> SF -> Ordonnances -> Certificats
+     * Cabinet → Staff → Caisse → Patient → Antécédents → Dossier → RDV → Consultation →
+     * Actes → Intervention → SF → Facture → Ordonnance → Certificat
      */
     void insertProcess() {
         System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-        System.out.println("║           📝 PROCESSUS D'INSERTION COMPLET                 ║");
+        System.out.println("║            PROCESSUS D'INSERTION COMPLET                 ║");
         System.out.println("╚════════════════════════════════════════════════════════════╝\n");
 
         try {
-            // 1. CRÉER UN PATIENT
-            System.out.println("1️⃣ Création d'un patient...");
+            // ========================================
+            // NETTOYAGE PRÉALABLE DES DONNÉES EXISTANTES
+            // ========================================
+            cleanupExistingData();
+
+            // ========================================
+            // ÉTAPE 1 : CRÉER LE CABINET MÉDICAL
+            // ========================================
+            System.out.println(" ÉTAPE 1 : Création du cabinet médical");
+            System.out.println("─────────────────────────────────────────");
+
+            Utilisateur admin = Utilisateur.builder()
+                    .nom("ADMIN")
+                    .prenom("Cabinet")
+                    .email("admin@dentaluxe.ma")
+                    .tel("0522334455")
+                    .login("admin")
+                    .passwordHash("admin123")
+                    .actif(true)
+                    .creationDate(LocalDateTime.now())
+                    .lastModificationDate(LocalDateTime.now())
+                    .build();
+
+            authRepo.create(admin);
+            idAdmin = admin.getId();
+
+            if (idAdmin == null) {
+                throw new RuntimeException("Échec de création de l'utilisateur admin - ID null");
+            }
+
+            affecterRole(idAdmin, "ADMIN");
+            System.out.println("     Admin créé - ID: " + idAdmin);
+
+            executeSql("INSERT INTO CabinetMedical (idUser, nom, email, tel, adresse, siteWeb, description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    idAdmin, "DentaLuxe Clinic", "contact@dentaluxe.ma", "0522334455",
+                    "123 Boulevard Mohamed V, Casablanca", "www.dentaluxe.ma",
+                    "Cabinet dentaire moderne et équipé");
+            idCabinet = idAdmin;
+            System.out.println("    Cabinet créé - ID: " + idCabinet + "\n");
+
+            // ========================================
+            // ÉTAPE 2 : CRÉER LE STAFF DU CABINET
+            // ========================================
+            System.out.println(" ÉTAPE 2 : Création du staff");
+            System.out.println("─────────────────────────────────────────");
+
+            Utilisateur medecin = Utilisateur.builder()
+                    .nom("ALAOUI")
+                    .prenom("Hassan")
+                    .email("dr.alaoui@dentaluxe.ma")
+                    .tel("0612345678")
+                    .login("dr.alaoui")
+                    .passwordHash("medecin123")
+                    .actif(true)
+                    .creationDate(LocalDateTime.now())
+                    .lastModificationDate(LocalDateTime.now())
+                    .build();
+
+            authRepo.create(medecin);
+            idMedecin = medecin.getId();
+
+            if (idMedecin == null) {
+                throw new RuntimeException("Échec de création du médecin - ID null");
+            }
+
+            affecterRole(idMedecin, "MEDECIN");
+
+            executeSql("INSERT INTO staff (id, salaire, date_recrutement) VALUES (?, ?, ?)",
+                    idMedecin, 15000.0, LocalDate.now().minusYears(3));
+            executeSql("INSERT INTO medecin (id, specialite) VALUES (?, ?)",
+                    idMedecin, "Chirurgien-dentiste");
+            System.out.println("    Médecin créé - Dr. " + medecin.getNom() + " (ID: " + idMedecin + ")");
+
+            Utilisateur secretaire = Utilisateur.builder()
+                    .nom("BENALI")
+                    .prenom("Fatima")
+                    .email("fatima@dentaluxe.ma")
+                    .tel("0623456789")
+                    .login("f.benali")
+                    .passwordHash("secret123")
+                    .actif(true)
+                    .creationDate(LocalDateTime.now())
+                    .lastModificationDate(LocalDateTime.now())
+                    .build();
+
+            authRepo.create(secretaire);
+            idSecretaire = secretaire.getId();
+
+            if (idSecretaire == null) {
+                throw new RuntimeException("Échec de création de la secrétaire - ID null");
+            }
+
+            affecterRole(idSecretaire, "SECRETAIRE");
+
+            executeSql("INSERT INTO staff (id, salaire, date_recrutement) VALUES (?, ?, ?)",
+                    idSecretaire, 5000.0, LocalDate.now().minusYears(1));
+            executeSql("INSERT INTO secretaire (id, num_cnss, commission) VALUES (?, ?, ?)",
+                    idSecretaire, "CNSS12345678", 500.0);
+            System.out.println("    Secrétaire créée - " + secretaire.getPrenom() + " (ID: " + idSecretaire + ")\n");
+
+            // ========================================
+            // ÉTAPE 3 : INITIALISER LA CAISSE
+            // ========================================
+            System.out.println("ÉTAPE 3 : Initialisation de la caisse");
+            System.out.println("─────────────────────────────────────────");
+
+            executeSql("INSERT INTO Revenus (idCabinet, titre, description, montant, dateRevenu) VALUES (?, ?, ?, ?, ?)",
+                    idCabinet, "Capital initial", "Investissement de démarrage", 100000.0, LocalDateTime.now());
+            System.out.println("     Revenu initial : 100,000 DH");
+
+            executeSql("INSERT INTO Charges (idCabinet, titre, description, montant, dateCharge) VALUES (?, ?, ?, ?, ?)",
+                    idCabinet, "Équipements", "Achat fauteuils et matériel", 50000.0, LocalDateTime.now());
+            System.out.println("     Charge initiale : 50,000 DH\n");
+
+            // ========================================
+            // ÉTAPE 4 : CRÉER UN PATIENT
+            // ========================================
+            System.out.println(" ÉTAPE 4 : Création d'un patient");
+            System.out.println("─────────────────────────────────────────");
+
             Patient patient = Patient.builder()
                     .nom("LEZREGUE")
                     .prenom("Aya")
@@ -125,62 +254,62 @@ public class Test {
                     .build();
             patientRepo.create(patient);
             idPatient = patient.getId();
-            System.out.println("   ✅ Patient créé - ID: " + idPatient);
+            System.out.println("   Patient créé - " + patient.getNom() + " " + patient.getPrenom() + " (ID: " + idPatient + ")\n");
 
-            // 2. CRÉER UN DOSSIER MÉDICAL
-            System.out.println("\n2️⃣ Création du dossier médical...");
+            // ========================================
+            // ÉTAPE 5 : CRÉER DES ANTÉCÉDENTS
+            // ========================================
+            System.out.println(" ÉTAPE 5 : Création des antécédents du patient");
+            System.out.println("─────────────────────────────────────────");
+
+            Long idAntecedentAllergie = 1L;   // Allergie Pénicilline
+            Long idAntecedentDiabete  = 2L;   // Diabète Type 2
+
+            AntecedentPatient ap1 = AntecedentPatient.builder()
+                    .idPatient(idPatient)
+                    .idAntecedent(idAntecedentAllergie)
+                    .dateAjout(LocalDate.now())
+                    .actif(true)
+                    .notes("Allergie découverte en 2020")
+                    .build();
+
+            antecedentPatientRepo.create(ap1);
+
+            AntecedentPatient ap2 = AntecedentPatient.builder()
+                    .idPatient(idPatient)
+                    .idAntecedent(idAntecedentDiabete)
+                    .dateAjout(LocalDate.now())
+                    .actif(true)
+                    .notes("Diabète stabilisé avec Metformine")
+                    .build();
+
+            antecedentPatientRepo.create(ap2);
+
+            System.out.println("    Antécédents personnels associés au patient\n");
+
+            // ========================================
+            // ÉTAPE 6 : CRÉER LE DOSSIER MÉDICAL
+            // ========================================
+            System.out.println(" ÉTAPE 6 : Création du dossier médical");
+            System.out.println("─────────────────────────────────────────");
+
             DossierMedical dossier = DossierMedical.builder()
                     .idPatient(idPatient)
                     .dateDeCreation(LocalDate.now())
                     .build();
             dossierRepo.create(dossier);
             idDM = dossier.getIdDM();
-            System.out.println("   ✅ Dossier médical créé - ID: " + idDM);
+            System.out.println("   Dossier médical créé - ID: " + idDM + "\n");
 
-            // 2.1 AJOUTER DES ANTÉCÉDENTS
-            System.out.println("\n2️⃣.1 Ajout d'antécédents...");
-            Antecedents antecedent = Antecedents.builder()
-                    .idDM(idDM)
-                    .nom("Allergie Pénicilline")
-                    .categorie(CategorieAntecedent.ALLERGIE)
-                    .niveauDeRisque(NiveauRisque.ELEVE)
-                    .build();
-            antecedentsRepo.create(antecedent);
-            System.out.println("   ✅ Antécédent ajouté - ID: " + antecedent.getIdAntecedent());
+            // ========================================
+            // ÉTAPE 7 : CRÉER UN RENDEZ-VOUS
+            // ========================================
+            System.out.println(" ÉTAPE 7 : Création d'un rendez-vous");
+            System.out.println("─────────────────────────────────────────");
 
-            // 3. OBTENIR UN MÉDECIN
-            System.out.println("\n3️⃣ Récupération d'un médecin...");
-            List<Utilisateur> medecins = authRepo.findAll().stream()
-                    .filter(u -> "MEDECIN".equals(getMedecinRole(u.getId())))
-                    .limit(1)
-                    .toList();
-
-            if (medecins.isEmpty()) {
-                System.out.println("   ⚠️  Aucun médecin trouvé, création d'un médecin de test...");
-                Utilisateur medecin = Utilisateur.builder()
-                        .nom("ALAOUI")
-                        .prenom("Hassan")
-                        .email("dr.alaoui@dentaluxe.ma")
-                        .tel("0612345679")
-                        .login("dr.alaoui")
-                        .passwordHash("password123")
-                        .actif(true)
-                        .creationDate(LocalDateTime.now())
-                        .lastModificationDate(LocalDateTime.now())
-                        .build();
-                authRepo.create(medecin);
-                idMedecin = medecin.getId();
-                System.out.println("   ✅ Médecin créé - ID: " + idMedecin);
-            } else {
-                idMedecin = medecins.get(0).getId();
-                System.out.println("   ✅ Médecin trouvé - ID: " + idMedecin);
-            }
-
-            // 4. CRÉER UN RENDEZ-VOUS
-            System.out.println("\n4️⃣ Création d'un rendez-vous...");
             RDV rdv = RDV.builder()
                     .idDM(idDM)
-                    .idMedecin(idMedecin)
+                    .idMedecin(idMedecin)  // ID maintenant disponible
                     .dateRDV(LocalDate.now().plusDays(1))
                     .heureRDV(LocalTime.of(10, 0))
                     .motif("Consultation dentaire de routine")
@@ -189,10 +318,14 @@ public class Test {
                     .build();
             rdvRepo.create(rdv);
             idRDV = rdv.getIdRDV();
-            System.out.println("   ✅ RDV créé - ID: " + idRDV);
+            System.out.println("   RDV créé - " + rdv.getDateRDV() + " à " + rdv.getHeureRDV() + " (ID: " + idRDV + ")\n");
 
-            // 5. CRÉER UNE CONSULTATION
-            System.out.println("\n5️⃣ Création d'une consultation...");
+            // ========================================
+            // ÉTAPE 8 : CRÉER UNE CONSULTATION
+            // ========================================
+            System.out.println(" ÉTAPE 8 : Création d'une consultation");
+            System.out.println("─────────────────────────────────────────");
+
             Consultation consultation = Consultation.builder()
                     .idDM(idDM)
                     .idMedecin(idMedecin)
@@ -202,44 +335,47 @@ public class Test {
                     .build();
             consultationRepo.create(consultation);
             idConsultation = consultation.getIdConsultation();
-            System.out.println("   ✅ Consultation créée - ID: " + idConsultation);
+            System.out.println("     Consultation créée - ID: " + idConsultation + "\n");
 
-            // 6. CRÉER DES ACTES
-            System.out.println("\n6️⃣ Création d'actes dentaires...");
-            Acte acte1 = Acte.builder()
-                    .libelle("Détartrage complet")
-                    .description("Nettoyage dentaire professionnel")
-                    .prixDeBase(300.0)
-                    .categorie(CategorieActe.DETARTRAGE)
+            // ========================================
+            // ÉTAPE 9 : CRÉER DES ACTES
+            // ========================================
+            System.out.println(" ÉTAPE 9 : Création d'actes dentaires");
+            System.out.println("─────────────────────────────────────────");
+
+            Acte acte = Acte.builder()
+                    .libelle("Détartrage + Plombage")
+                    .description("Nettoyage dentaire + Obturation composite")
+                    .prixDeBase(800.0)
+                    .categorie(CategorieActe.CONSULTATION)
                     .build();
-            acteRepo.create(acte1);
-            idActe = acte1.getIdActe();
-            System.out.println("   ✅ Acte créé - ID: " + idActe);
+            acteRepo.create(acte);
+            idActe = acte.getIdActe();
+            System.out.println("     Acte créé - " + acte.getLibelle() + " : " + acte.getPrixDeBase() + " DH (ID: " + idActe + ")\n");
 
-            Acte acte2 = Acte.builder()
-                    .libelle("Plombage dentaire")
-                    .description("Obturation composite")
-                    .prixDeBase(500.0)
-                    .categorie(CategorieActe.EXTRACTION)
-                    .build();
-            acteRepo.create(acte2);
-            System.out.println("   ✅ Acte créé - ID: " + acte2.getIdActe());
+            // ========================================
+            // ÉTAPE 10 : CRÉER UNE INTERVENTION
+            // ========================================
+            System.out.println(" ÉTAPE 10 : Création d'intervention médecin");
+            System.out.println("─────────────────────────────────────────");
 
-            // 7. CRÉER UNE INTERVENTION
-            System.out.println("\n7️⃣ Création d'intervention médecin...");
             InterventionMedecin intervention = InterventionMedecin.builder()
                     .idConsultation(idConsultation)
                     .idMedecin(idMedecin)
                     .idActe(idActe)
-                    .numDent(5)
+                    .numDent(2)
                     .prixIntervention(800.0)
                     .build();
             interventionRepo.create(intervention);
             idIntervention = intervention.getIdIM();
-            System.out.println("   ✅ Intervention créée - ID: " + idIntervention);
+            System.out.println("    Intervention créée - ID: " + idIntervention + "\n");
 
-            // 8. CRÉER UNE SITUATION FINANCIÈRE
-            System.out.println("\n8️⃣ Création de la situation financière...");
+            // ========================================
+            // ÉTAPE 11 : CRÉER LA SITUATION FINANCIÈRE
+            // ========================================
+            System.out.println(" ÉTAPE 11 : Création de la situation financière");
+            System.out.println("─────────────────────────────────────────");
+
             SituationFinanciere sf = SituationFinanciere.builder()
                     .idDM(idDM)
                     .totalDesActes(800.0)
@@ -251,10 +387,14 @@ public class Test {
                     .build();
             sfRepo.create(sf);
             idSF = sf.getIdSF();
-            System.out.println("   ✅ Situation financière créée - ID: " + idSF);
+            System.out.println("    Situation financière créée - Total: " + sf.getTotalDesActes() + " DH (ID: " + idSF + ")\n");
 
-            // 9. CRÉER UNE FACTURE
-            System.out.println("\n9️⃣ Création d'une facture...");
+            // ========================================
+            // ÉTAPE 12 : CRÉER UNE FACTURE
+            // ========================================
+            System.out.println(" ÉTAPE 12 : Création d'une facture");
+            System.out.println("─────────────────────────────────────────");
+
             Facture facture = Facture.builder()
                     .idConsultation(idConsultation)
                     .idSF(idSF)
@@ -266,10 +406,14 @@ public class Test {
                     .build();
             factureRepo.create(facture);
             idFacture = facture.getIdFacture();
-            System.out.println("   ✅ Facture créée - ID: " + idFacture);
+            System.out.println("    Facture créée - Montant: " + facture.getTotalFacture() + " DH (ID: " + idFacture + ")\n");
 
-            // 10. CRÉER UNE ORDONNANCE
-            System.out.println("\n🔟 Création d'une ordonnance...");
+            // ========================================
+            // ÉTAPE 13 : CRÉER UNE ORDONNANCE
+            // ========================================
+            System.out.println("ÉTAPE 13 : Création d'une ordonnance");
+            System.out.println("─────────────────────────────────────────");
+
             Ordonnance ordonnance = Ordonnance.builder()
                     .idDM(idDM)
                     .idMedecin(idMedecin)
@@ -277,10 +421,8 @@ public class Test {
                     .build();
             ordonnanceRepo.create(ordonnance);
             idOrdonnance = ordonnance.getIdOrdo();
-            System.out.println("   ✅ Ordonnance créée - ID: " + idOrdonnance);
+            System.out.println("    Ordonnance créée - ID: " + idOrdonnance);
 
-            // 10.1 AJOUTER DES MÉDICAMENTS
-            System.out.println("\n🔟.1 Ajout de prescriptions...");
             List<Medicament> medicaments = medicamentRepo.findAll();
             if (!medicaments.isEmpty()) {
                 Medicament med = medicaments.get(0);
@@ -292,11 +434,15 @@ public class Test {
                         .dureeEnJours(7)
                         .build();
                 prescriptionRepo.create(prescription);
-                System.out.println("   ✅ Prescription ajoutée - Médicament: " + med.getNom());
+                System.out.println("    Prescription ajoutée - " + med.getNom() + "\n");
             }
 
-            // 11. CRÉER UN CERTIFICAT
-            System.out.println("\n1️⃣1️⃣ Création d'un certificat médical...");
+            // ========================================
+            // ÉTAPE 14 : CRÉER UN CERTIFICAT
+            // ========================================
+            System.out.println(" ÉTAPE 14 : Création d'un certificat médical");
+            System.out.println("─────────────────────────────────────────");
+
             Certificat certificat = Certificat.builder()
                     .idDM(idDM)
                     .idMedecin(idMedecin)
@@ -307,14 +453,14 @@ public class Test {
                     .build();
             certificatRepo.create(certificat);
             idCertificat = certificat.getIdCertif();
-            System.out.println("   ✅ Certificat créé - ID: " + idCertificat);
+            System.out.println("    Certificat créé - " + certificat.getDuree() + " jours (ID: " + idCertificat + ")\n");
 
-            System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║         ✅ PROCESSUS D'INSERTION TERMINÉ AVEC SUCCÈS       ║");
+            System.out.println("╔════════════════════════════════════════════════════════════╗");
+            System.out.println("║         PROCESSUS D'INSERTION TERMINÉ AVEC SUCCÈS       ║");
             System.out.println("╚════════════════════════════════════════════════════════════╝");
 
         } catch (Exception e) {
-            System.err.println("\n❌ ERREUR lors de l'insertion: " + e.getMessage());
+            System.err.println("\n✗ ERREUR lors de l'insertion: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -324,92 +470,49 @@ public class Test {
      */
     void updateProcess() {
         System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-        System.out.println("║           🔄 PROCESSUS DE MISE À JOUR                      ║");
+        System.out.println("║            PROCESSUS DE MISE À JOUR                      ║");
         System.out.println("╚════════════════════════════════════════════════════════════╝\n");
 
         try {
-            // 1. MODIFIER LE PATIENT
-            System.out.println("1️⃣ Modification du patient...");
+            System.out.println(" Mise à jour des entités créées...\n");
+
             Patient patient = patientRepo.findById(idPatient);
             if (patient != null) {
                 patient.setTelephone("0698765432");
-                patient.setEmail("aya.lezregue.updated@test.com");
                 patientRepo.update(patient);
-                System.out.println("   ✅ Patient mis à jour - ID: " + idPatient);
+                System.out.println(" Patient mis à jour");
             }
 
-            // 2. MODIFIER LE RDV
-            System.out.println("\n2️⃣ Modification du RDV...");
-            RDV rdv = rdvRepo.findById(idRDV);
-            if (rdv != null) {
-                rdv.setHeureRDV(LocalTime.of(11, 0));
-                rdv.setStatut(StatutRDV.TERMINE);
-                rdv.setNoteMedecin("Patient arrivé à l'heure, consultation effectuée");
-                rdvRepo.update(rdv);
-                System.out.println("   ✅ RDV mis à jour - ID: " + idRDV);
-            }
+            if (idFacture != null) {
+                Facture facture = factureRepo.findById(idFacture);
+                if (facture != null) {
+                    double paiement = 400.0;
+                    facture.setMontantPaye(paiement);
+                    facture.setReste(facture.getTotalFacture() - paiement);
+                    facture.setStatut(StatutFacture.PARTIELLEMENT_PAYEE);
+                    factureRepo.update(facture);
+                    System.out.println(" Paiement enregistré : " + paiement + " DH");
 
-            // 3. MODIFIER LA CONSULTATION
-            System.out.println("\n3️⃣ Modification de la consultation...");
-            Consultation consultation = consultationRepo.findById(idConsultation);
-            if (consultation != null) {
-                consultation.setObservation(consultation.getObservation() +
-                        " | Mise à jour: Traitement effectué avec succès.");
-                consultationRepo.update(consultation);
-                System.out.println("   ✅ Consultation mise à jour - ID: " + idConsultation);
-            }
-
-            // 4. MODIFIER L'ACTE
-            System.out.println("\n4️⃣ Modification de l'acte...");
-            Acte acte = acteRepo.findById(idActe);
-            if (acte != null) {
-                acte.setPrixDeBase(350.0);
-                acteRepo.update(acte);
-                System.out.println("   ✅ Acte mis à jour - ID: " + idActe);
-            }
-
-            // 5. ENREGISTRER UN PAIEMENT
-            System.out.println("\n5️⃣ Enregistrement d'un paiement...");
-            Facture facture = factureRepo.findById(idFacture);
-            if (facture != null) {
-                double paiement = 400.0;
-                facture.setMontantPaye(facture.getMontantPaye() + paiement);
-                facture.setReste(facture.getTotalFacture() - facture.getMontantPaye());
-                facture.setStatut(StatutFacture.PARTIELLEMENT_PAYEE);
-                factureRepo.update(facture);
-                System.out.println("   ✅ Paiement enregistré: " + paiement + " DH");
-                System.out.println("   💰 Reste à payer: " + facture.getReste() + " DH");
-            }
-
-            // 6. METTRE À JOUR LA SITUATION FINANCIÈRE
-            System.out.println("\n6️⃣ Mise à jour de la situation financière...");
-            SituationFinanciere sf = sfRepo.findById(idSF);
-            if (sf != null) {
-                sf.setTotalPaye(400.0);
-                sf.setResteDu(400.0);
-                sf.setCreance(400.0);
-                sf.setStatut(StatutSituationFinanciere.SOLDE);
-                sfRepo.update(sf);
-                System.out.println("   ✅ Situation financière mise à jour - ID: " + idSF);
-            }
-
-            // 7. PROLONGER LE CERTIFICAT
-            System.out.println("\n7️⃣ Prolongation du certificat...");
-            Certificat certificat = certificatRepo.findById(idCertificat);
-            if (certificat != null) {
-                certificat.setDateFin(certificat.getDateFin().plusDays(2));
-                certificat.setDuree(certificat.getDuree() + 2);
-                certificat.setNoteMedecin(certificat.getNoteMedecin() + " | Prolongation de 2 jours");
-                certificatRepo.update(certificat);
-                System.out.println("   ✅ Certificat prolongé - Nouvelle durée: " + certificat.getDuree() + " jours");
+                    if (idSF != null) {
+                        SituationFinanciere sf = sfRepo.findById(idSF);
+                        if (sf != null) {
+                            sf.setTotalPaye(paiement);
+                            sf.setResteDu(sf.getTotalDesActes() - paiement);
+                            sf.setCreance(sf.getResteDu());
+                            sf.setStatut(StatutSituationFinanciere.SOLDE);
+                            sfRepo.update(sf);
+                            System.out.println(" Situation financière mise à jour");
+                        }
+                    }
+                }
             }
 
             System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║       ✅ PROCESSUS DE MISE À JOUR TERMINÉ AVEC SUCCÈS      ║");
+            System.out.println("║        PROCESSUS DE MISE À JOUR TERMINÉ AVEC SUCCÈS      ║");
             System.out.println("╚════════════════════════════════════════════════════════════╝");
 
         } catch (Exception e) {
-            System.err.println("\n❌ ERREUR lors de la mise à jour: " + e.getMessage());
+            System.err.println("\nERREUR lors de la mise à jour: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -419,128 +522,39 @@ public class Test {
      */
     void selectProcess() {
         System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-        System.out.println("║              📊 PROCESSUS DE SÉLECTION                     ║");
+        System.out.println("║              PROCESSUS DE SÉLECTION                     ║");
         System.out.println("╚════════════════════════════════════════════════════════════╝\n");
 
         try {
-            // 1. LIRE LE PATIENT ET SON DOSSIER
-            System.out.println("1️⃣ Lecture du patient et son dossier...");
-            Patient patient = patientRepo.findById(idPatient);
-            if (patient != null) {
-                System.out.println("   📋 Patient: " + patient.getNom() + " " + patient.getPrenom());
-                System.out.println("   📞 Tel: " + patient.getTelephone());
-                System.out.println("   📧 Email: " + patient.getEmail());
+            System.out.println(" Lecture de toutes les données créées...\n");
 
-                DossierMedical dossier = dossierRepo.findById(idDM);
-                if (dossier != null) {
-                    System.out.println("   📁 Dossier médical: #" + dossier.getIdDM());
-                    System.out.println("   📅 Date création: " + dossier.getDateDeCreation());
+            System.out.println("✓ Cabinet : ID " + idCabinet);
+            System.out.println("✓ Staff : Admin(" + idAdmin + "), Médecin(" + idMedecin + "), Secrétaire(" + idSecretaire + ")");
+            System.out.println("✓ Patient : ID " + idPatient);
+            System.out.println("✓ Antécédents : " + antecedentPatientRepo.countByPatientId(idPatient) + " associé(s)");
+            System.out.println("✓ Dossier médical : ID " + idDM);
+            System.out.println("✓ RDV : ID " + idRDV);
+            System.out.println("✓ Consultation : ID " + idConsultation);
+            System.out.println("✓ Acte : ID " + idActe);
+            System.out.println("✓ Intervention : ID " + idIntervention);
+
+            if (idFacture != null) {
+                Facture facture = factureRepo.findById(idFacture);
+                if (facture != null) {
+                    System.out.println("✓ Facture : " + facture.getMontantPaye() + " DH payé sur " + facture.getTotalFacture() + " DH");
                 }
             }
 
-            // 2. LIRE LES ANTÉCÉDENTS
-            System.out.println("\n2️⃣ Lecture des antécédents...");
-            List<Antecedents> antecedents = antecedentsRepo.findByDossierMedicalId(idDM);
-            System.out.println("   📝 Nombre d'antécédents: " + antecedents.size());
-            antecedents.forEach(a -> System.out.println("      • " + a.getNom() +
-                    " (" + a.getCategorie() + ", " + a.getNiveauDeRisque() + ")"));
-
-            // 3. LIRE LES RDV
-            System.out.println("\n3️⃣ Lecture des rendez-vous...");
-            List<RDV> rdvs = rdvRepo.findByPatientDossierId(idDM);
-            System.out.println("   📅 Nombre de RDV: " + rdvs.size());
-            rdvs.forEach(r -> System.out.println("      • " + r.getDateRDV() + " " +
-                    r.getHeureRDV() + " - " + r.getMotif() + " (" + r.getStatut() + ")"));
-
-            // 4. LIRE LES CONSULTATIONS
-            System.out.println("\n4️⃣ Lecture des consultations...");
-            List<Consultation> consultations = consultationRepo.findByDossierMedicalId(idDM);
-            System.out.println("   🩺 Nombre de consultations: " + consultations.size());
-            consultations.forEach(c -> System.out.println("      • " + c.getDateConsultation() +
-                    " - " + c.getStatut() + " - " +
-                    (c.getObservation() != null && c.getObservation().length() > 50 ?
-                            c.getObservation().substring(0, 50) + "..." : c.getObservation())));
-
-            // 5. LIRE LES INTERVENTIONS
-            System.out.println("\n5️⃣ Lecture des interventions...");
-            if (idIntervention != null) {
-                List<InterventionMedecin> interventions = interventionRepo.findByIdConsultation(idConsultation);
-                System.out.println("   💉 Nombre d'interventions: " + interventions.size());
-                interventions.forEach(i -> System.out.println("      • Acte ID: " + i.getIdActe() +
-                        " - Prix: " + i.getPrixIntervention() + " DH"));
-            }
-
-            // 6. LIRE LES ACTES
-            System.out.println("\n6️⃣ Lecture des actes...");
-            List<Acte> actes = acteRepo.findAll();
-            System.out.println("   🦷 Nombre total d'actes: " + actes.size());
-            actes.stream().limit(5).forEach(a -> System.out.println("      • " + a.getLibelle() +
-                    " - " + a.getPrixDeBase() + " DH (" + a.getCategorie() + ")"));
-
-            // 7. LIRE LA FACTURE
-            System.out.println("\n7️⃣ Lecture de la facture...");
-            Facture facture = factureRepo.findById(idFacture);
-            if (facture != null) {
-                System.out.println("   💰 Facture #" + facture.getIdFacture());
-                System.out.println("   💵 Total: " + facture.getTotalFacture() + " DH");
-                System.out.println("   ✅ Payé: " + facture.getMontantPaye() + " DH");
-                System.out.println("   ⏳ Reste: " + facture.getReste() + " DH");
-                System.out.println("   📊 Statut: " + facture.getStatut());
-            }
-
-            // 8. LIRE LA SITUATION FINANCIÈRE
-            System.out.println("\n8️⃣ Lecture de la situation financière...");
-            SituationFinanciere sf = sfRepo.findById(idSF);
-            if (sf != null) {
-                System.out.println("   💳 Total des actes: " + sf.getTotalDesActes() + " DH");
-                System.out.println("   💰 Total payé: " + sf.getTotalPaye() + " DH");
-                System.out.println("   📈 Créance: " + sf.getCreance() + " DH");
-                System.out.println("   📊 Statut: " + sf.getStatut());
-            }
-
-            // 9. LIRE L'ORDONNANCE
-            System.out.println("\n9️⃣ Lecture de l'ordonnance...");
-            Ordonnance ordonnance = ordonnanceRepo.findById(idOrdonnance);
-            if (ordonnance != null) {
-                System.out.println("   💊 Ordonnance #" + ordonnance.getIdOrdo());
-                System.out.println("   📅 Date: " + ordonnance.getDateOrdonnance());
-
-                List<Prescription> prescriptions = prescriptionRepo.findByOrdonnance(idOrdonnance);
-                System.out.println("   📝 Prescriptions: " + prescriptions.size());
-                prescriptions.forEach(p -> {
-                    Medicament med = medicamentRepo.findById(p.getIdMedicament());
-                    if (med != null) {
-                        System.out.println("      • " + med.getNom() + " - " +
-                                p.getFrequence() + " pendant " + p.getDureeEnJours() + " jours");
-                    }
-                });
-            }
-
-            // 10. LIRE LE CERTIFICAT
-            System.out.println("\n🔟 Lecture du certificat...");
-            Certificat certificat = certificatRepo.findById(idCertificat);
-            if (certificat != null) {
-                System.out.println("   📜 Certificat #" + certificat.getIdCertif());
-                System.out.println("   📅 Période: " + certificat.getDateDebut() + " → " + certificat.getDateFin());
-                System.out.println("   ⏱️  Durée: " + certificat.getDuree() + " jours");
-                System.out.println("   📝 Note: " + certificat.getNoteMedecin());
-            }
-
-            // 11. STATISTIQUES GLOBALES
-            System.out.println("\n1️⃣1️⃣ Statistiques globales...");
-            System.out.println("   👥 Patients totaux: " + patientRepo.findAll().size());
-            System.out.println("   📁 Dossiers médicaux: " + dossierRepo.findAll().size());
-            System.out.println("   📅 RDV totaux: " + rdvRepo.findAll().size());
-            System.out.println("   🩺 Consultations totales: " + consultationRepo.findAll().size());
-            System.out.println("   🦷 Actes disponibles: " + acteRepo.findAll().size());
-            System.out.println("   💰 Factures totales: " + factureRepo.findAll().size());
+            System.out.println("✓ Situation financière : ID " + idSF);
+            System.out.println("✓ Ordonnance : ID " + idOrdonnance);
+            System.out.println("✓ Certificat : ID " + idCertificat);
 
             System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║        ✅ PROCESSUS DE SÉLECTION TERMINÉ AVEC SUCCÈS       ║");
+            System.out.println("║        PROCESSUS DE SÉLECTION TERMINÉ AVEC SUCCÈS       ║");
             System.out.println("╚════════════════════════════════════════════════════════════╝");
 
         } catch (Exception e) {
-            System.err.println("\n❌ ERREUR lors de la sélection: " + e.getMessage());
+            System.err.println("\n ERREUR lors de la sélection: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -550,206 +564,163 @@ public class Test {
      */
     void deleteProcess() {
         System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-        System.out.println("║              🗑️  PROCESSUS DE SUPPRESSION                  ║");
+        System.out.println("║                PROCESSUS DE SUPPRESSION                  ║");
         System.out.println("╚════════════════════════════════════════════════════════════╝\n");
 
         try {
-            // ORDRE DE SUPPRESSION (du plus dépendant au moins dépendant)
+            System.out.println(" Suppression dans l'ordre inverse de la création...\n");
 
-            // 1. SUPPRIMER LE CERTIFICAT
-            System.out.println("1️⃣ Suppression du certificat...");
             if (idCertificat != null) {
                 certificatRepo.deleteById(idCertificat);
-                System.out.println("   ✅ Certificat supprimé - ID: " + idCertificat);
+                System.out.println(" Certificat supprimé");
             }
-
-            // 2. SUPPRIMER LES PRESCRIPTIONS
-            System.out.println("\n2️⃣ Suppression des prescriptions...");
-            if (idOrdonnance != null) {
-                List<Prescription> prescriptions = prescriptionRepo.findByOrdonnance(idOrdonnance);
-                for (Prescription p : prescriptions) {
-                    prescriptionRepo.delete(p);
-                }
-                System.out.println("   ✅ " + prescriptions.size() + " prescription(s) supprimée(s)");
-            }
-
-            // 3. SUPPRIMER L'ORDONNANCE
-            System.out.println("\n3️⃣ Suppression de l'ordonnance...");
             if (idOrdonnance != null) {
                 ordonnanceRepo.deleteById(idOrdonnance);
-                System.out.println("   ✅ Ordonnance supprimée - ID: " + idOrdonnance);
+                System.out.println(" Ordonnance supprimée");
             }
-
-            // 4. SUPPRIMER LA FACTURE
-            System.out.println("\n4️⃣ Suppression de la facture...");
             if (idFacture != null) {
                 factureRepo.deleteById(idFacture);
-                System.out.println("   ✅ Facture supprimée - ID: " + idFacture);
+                System.out.println(" Facture supprimée");
             }
-
-            // 5. SUPPRIMER LA SITUATION FINANCIÈRE
-            System.out.println("\n5️⃣ Suppression de la situation financière...");
             if (idSF != null) {
                 sfRepo.deleteById(idSF);
-                System.out.println("   ✅ Situation financière supprimée - ID: " + idSF);
+                System.out.println("Situation financière supprimée");
             }
-
-            // 6. SUPPRIMER L'INTERVENTION
-            System.out.println("\n6️⃣ Suppression de l'intervention...");
             if (idIntervention != null) {
                 interventionRepo.deleteById(idIntervention);
-                System.out.println("   ✅ Intervention supprimée - ID: " + idIntervention);
+                System.out.println("Intervention supprimée");
             }
-
-            // 7. SUPPRIMER LES ACTES
-            System.out.println("\n7️⃣ Suppression des actes...");
             if (idActe != null) {
                 acteRepo.deleteById(idActe);
-                System.out.println("   ✅ Acte supprimé - ID: " + idActe);
+                System.out.println(" Acte supprimé");
             }
-
-            // 8. SUPPRIMER LA CONSULTATION
-            System.out.println("\n8️⃣ Suppression de la consultation...");
             if (idConsultation != null) {
                 consultationRepo.deleteById(idConsultation);
-                System.out.println("   ✅ Consultation supprimée - ID: " + idConsultation);
+                System.out.println(" Consultation supprimée");
             }
-
-            // 9. SUPPRIMER LE RDV
-            System.out.println("\n9️⃣ Suppression du rendez-vous...");
             if (idRDV != null) {
                 rdvRepo.deleteById(idRDV);
-                System.out.println("   ✅ RDV supprimé - ID: " + idRDV);
+                System.out.println(" RDV supprimé");
             }
-
-            // 10. SUPPRIMER LES ANTÉCÉDENTS
-            System.out.println("\n🔟 Suppression des antécédents...");
-            if (idDM != null) {
-                List<Antecedents> antecedents = antecedentsRepo.findByDossierMedicalId(idDM);
-                for (Antecedents a : antecedents) {
-                    antecedentsRepo.delete(a);
-                }
-                System.out.println("   ✅ " + antecedents.size() + " antécédent(s) supprimé(s)");
-            }
-
-            // 11. SUPPRIMER LE DOSSIER MÉDICAL
-            System.out.println("\n1️⃣1️⃣ Suppression du dossier médical...");
             if (idDM != null) {
                 dossierRepo.deleteById(idDM);
-                System.out.println("   ✅ Dossier médical supprimé - ID: " + idDM);
+                System.out.println(" Dossier médical supprimé");
             }
-
-            // 12. SUPPRIMER LE PATIENT
-            System.out.println("\n1️⃣2️⃣ Suppression du patient...");
             if (idPatient != null) {
                 patientRepo.deleteById(idPatient);
-                System.out.println("   ✅ Patient supprimé - ID: " + idPatient);
+                System.out.println(" Patient supprimé");
             }
 
             System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║       ✅ PROCESSUS DE SUPPRESSION TERMINÉ AVEC SUCCÈS      ║");
+            System.out.println("║        PROCESSUS DE SUPPRESSION TERMINÉ AVEC SUCCÈS      ║");
             System.out.println("╚════════════════════════════════════════════════════════════╝");
 
         } catch (Exception e) {
-            System.err.println("\n❌ ERREUR lors de la suppression: " + e.getMessage());
+            System.err.println("\n ERREUR lors de la suppression: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
     /**
-     * Méthode utilitaire pour obtenir le rôle d'un médecin
+     * Nettoie les données existantes pour éviter les erreurs de duplication
      */
-    private static String getMedecinRole(Long userId) {
-        try (Connection conn = Db.getConnection()) {
-            String sql = "SELECT r.libelle FROM role r " +
-                    "JOIN utilisateur_role ur ON r.id = ur.role_id " +
-                    "WHERE ur.utilisateur_id = ?";
-            var pstmt = conn.prepareStatement(sql);
-            pstmt.setLong(1, userId);
-            var rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getString("libelle");
-            }
+    private static void cleanupExistingData() {
+        try {
+            // Suppression des données existantes dans l'ordre inverse des dépendances
+            executeSqlSilent("DELETE FROM certificat WHERE idMedecin IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM prescription WHERE idOrdo IN (SELECT idOrdo FROM ordonnance WHERE idMedecin IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma')))");
+            executeSqlSilent("DELETE FROM ordonnance WHERE idMedecin IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM facture WHERE idConsultation IN (SELECT idConsultation FROM consultation WHERE idMedecin IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma')))");
+            executeSqlSilent("DELETE FROM situationfinanciere WHERE idDM IN (SELECT idDM FROM dossiermedical WHERE idPatient IN (SELECT id FROM patient WHERE email = 'aya.lezregue@test.com'))");
+            executeSqlSilent("DELETE FROM interventionmedecin WHERE idMedecin IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM consultation WHERE idMedecin IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM rdv WHERE idMedecin IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM dossiermedical WHERE idPatient IN (SELECT id FROM patient WHERE email = 'aya.lezregue@test.com')");
+            executeSqlSilent("DELETE FROM antecedent_patient WHERE idPatient IN (SELECT id FROM patient WHERE email = 'aya.lezregue@test.com')");
+            executeSqlSilent("DELETE FROM patient WHERE email = 'aya.lezregue@test.com'");
+            executeSqlSilent("DELETE FROM Charges WHERE idCabinet IN (SELECT idUser FROM CabinetMedical WHERE email = 'contact@dentaluxe.ma')");
+            executeSqlSilent("DELETE FROM Revenus WHERE idCabinet IN (SELECT idUser FROM CabinetMedical WHERE email = 'contact@dentaluxe.ma')");
+            executeSqlSilent("DELETE FROM CabinetMedical WHERE email = 'contact@dentaluxe.ma'");
+            executeSqlSilent("DELETE FROM secretaire WHERE id IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM medecin WHERE id IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM staff WHERE id IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM utilisateur_role WHERE utilisateur_id IN (SELECT id FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma'))");
+            executeSqlSilent("DELETE FROM utilisateur WHERE email IN ('admin@dentaluxe.ma', 'dr.alaoui@dentaluxe.ma', 'fatima@dentaluxe.ma')");
+
         } catch (Exception e) {
-            // Ignorer
+            // Ignorer les erreurs de nettoyage (si les données n'existent pas)
         }
-        return null;
+    }
+
+    // Méthodes utilitaires
+    private static void affecterRole(Long userId, String roleName) {
+        executeSql("INSERT INTO utilisateur_role (utilisateur_id, role_id) SELECT ?, id FROM role WHERE libelle = ?",
+                userId, roleName);
+    }
+
+    private static void executeSql(String sql, Object... params) {
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                pstmt.setObject(i + 1, params[i]);
+            }
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println(" Erreur SQL: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**
-     * Méthode principale
+     * Exécute une requête SQL sans afficher les erreurs (pour le nettoyage)
      */
-    public static void main(String[] args) {
-        System.out.println("\n");
-        System.out.println("╔════════════════════════════════════════════════════════════╗");
-        System.out.println("║                                                            ║");
-        System.out.println("║         🦷 DENTALUXE - TEST COMPLET REPOSITORIES          ║");
-        System.out.println("║                   Par AYA LEZREGUE                         ║");
-        System.out.println("║                                                            ║");
-        System.out.println("╚════════════════════════════════════════════════════════════╝");
-        System.out.println("\n");
+    private static void executeSqlSilent(String sql, Object... params) {
+        try (Connection conn = Db.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            for (int i = 0; i < params.length; i++) {
+                pstmt.setObject(i + 1, params[i]);
+            }
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // Ignorer silencieusement les erreurs
+        }
+    }
 
-        // Vérifier la connexion à la base de données
+    public static void main(String[] args) {
+        System.out.println("\n╔════════════════════════════════════════════════════════════╗");
+        System.out.println("║          DENTALUXE - TEST COMPLET REPOSITORIES          ║");
+        System.out.println("║                   Par AYA LEZREGUE                         ║");
+        System.out.println("╚════════════════════════════════════════════════════════════╝\n");
+
         try (Connection conn = Db.getConnection()) {
             if (conn != null && !conn.isClosed()) {
-                System.out.println("✅ Connexion à la base de données réussie!\n");
-            } else {
-                System.out.println("❌ Échec de connexion à la base de données");
-                return;
+                System.out.println(" Connexion à la base de données réussie!\n");
             }
         } catch (Exception e) {
-            System.out.println("❌ Erreur de connexion: " + e.getMessage());
+            System.out.println(" Erreur de connexion: " + e.getMessage());
             return;
         }
 
         Test test = new Test();
 
-        // Exécuter les processus dans l'ordre
         try {
-            // 1. INSERTION
             test.insertProcess();
-            Thread.sleep(1000); // Pause pour la lisibilité
-
-            // 2. SÉLECTION
+            Thread.sleep(1000);
             test.selectProcess();
             Thread.sleep(1000);
-
-            // 3. MISE À JOUR
             test.updateProcess();
             Thread.sleep(1000);
-
-            // 4. SÉLECTION APRÈS MISE À JOUR
-            System.out.println("\n╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║         📊 VÉRIFICATION APRÈS MISE À JOUR                  ║");
-            System.out.println("╚════════════════════════════════════════════════════════════╝");
-            test.selectProcess();
-            Thread.sleep(1000);
-
-            // 5. SUPPRESSION
             test.deleteProcess();
 
-            // Résumé final
-            System.out.println("\n");
-            System.out.println("╔════════════════════════════════════════════════════════════╗");
-            System.out.println("║                                                            ║");
-            System.out.println("║              ✅ TOUS LES TESTS TERMINÉS                    ║");
-            System.out.println("║                                                            ║");
-            System.out.println("║  Processus exécutés :                                      ║");
-            System.out.println("║    ✓ Insertion complète (Patient → Certificat)            ║");
-            System.out.println("║    ✓ Sélection (Lecture de toutes les données)            ║");
-            System.out.println("║    ✓ Mise à jour (Modification des entités)               ║");
-            System.out.println("║    ✓ Suppression (Nettoyage complet)                      ║");
-            System.out.println("║                                                            ║");
-            System.out.println("║  Flux métier testé :                                       ║");
-            System.out.println("║    Patient → Dossier → RDV → Consultation →               ║");
-            System.out.println("║    Actes → Intervention → Facture → SF →                  ║");
-            System.out.println("║    Ordonnance → Certificat                                ║");
-            System.out.println("║                                                            ║");
-            System.out.println("╚════════════════════════════════════════════════════════════╝");
-            System.out.println("\n");
+            System.out.println("\n╔════════════════════════════════════════════════════════════╗");
+            System.out.println("║               TOUS LES TESTS TERMINÉS                    ║");
+            System.out.println("║  ORDRE: Cabinet → Staff → Caisse → Patient → Antécédents  ║");
+            System.out.println("║  → Dossier → RDV → Consultation → Actes → Intervention    ║");
+            System.out.println("║  → SF → Facture → Ordonnance → Certificat                  ║");
+            System.out.println("╚════════════════════════════════════════════════════════════╝\n");
 
         } catch (Exception e) {
-            System.err.println("\n❌ ERREUR CRITIQUE: " + e.getMessage());
+            System.err.println("\nERREUR CRITIQUE: " + e.getMessage());
             e.printStackTrace();
         }
     }

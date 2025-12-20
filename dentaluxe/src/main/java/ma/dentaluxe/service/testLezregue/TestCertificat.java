@@ -1,6 +1,6 @@
 package ma.dentaluxe.service.testLezregue;
 
-import ma.dentaluxe.mvc.dto.CertificatDTO;
+import ma.dentaluxe.service.certificat.dto.CertificatDTO;
 import ma.dentaluxe.repository.modules.certificat.api.CertificatRepository;
 import ma.dentaluxe.repository.modules.certificat.inMemDB_implementation.CertificatRepositoryImpl;
 import ma.dentaluxe.service.certificat.api.CertificatService;

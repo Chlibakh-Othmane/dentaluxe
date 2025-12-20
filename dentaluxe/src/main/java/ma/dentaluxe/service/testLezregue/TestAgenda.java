@@ -1,6 +1,6 @@
 package ma.dentaluxe.service.testLezregue;
 
-import ma.dentaluxe.mvc.dto.RDVDTO;
+import ma.dentaluxe.service.agenda.dto.RDVDTO;
 import ma.dentaluxe.entities.enums.StatutRDV;
 import ma.dentaluxe.repository.modules.agenda.api.RDVRepository;
 import ma.dentaluxe.repository.modules.agenda.inMemDB_implementation.RDVRepositoryImpl;
