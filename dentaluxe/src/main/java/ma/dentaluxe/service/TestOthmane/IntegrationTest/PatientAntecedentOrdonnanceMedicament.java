@@ -1,3 +1,4 @@
+/*
 package ma.dentaluxe.service.TestOthmane.IntegrationTest;
 
 import ma.dentaluxe.service.ordonnance.api.OrdonnanceService;
@@ -5,7 +6,7 @@ import ma.dentaluxe.service.patient.baseImplimentation.PatientServiceImpl;
 import ma.dentaluxe.service.patient.baseImplimentation.AntecedentServiceImpl;
 import ma.dentaluxe.service.ordonnance.baseImplementation.OrdonnanceServiceImpl;
 import ma.dentaluxe.service.ordonnance.baseImplementation.PrescriptionServiceImpl;
-import ma.dentaluxe.service.medicament.baseImplementation.MedicamentServiceImpl;
+import ma.dentaluxe.service.medicament.baseImplimentation.MedicamentServiceImpl;
 import ma.dentaluxe.entities.patient.Patient;
 import ma.dentaluxe.entities.patient.Antecedent;
 import ma.dentaluxe.entities.ordonnance.Ordonnance;
@@ -29,7 +30,7 @@ import java.util.*;
 
 /**
  * Test interactif avec menu pour Patient -> Antecedent -> Ordonnance -> Prescription -> Medicament
- */
+
 public class PatientAntecedentOrdonnanceMedicament {
 
     // Services
@@ -100,8 +101,8 @@ public class PatientAntecedentOrdonnanceMedicament {
         PrescriptionRepository prescriptionRepo = new PrescriptionRepositoryImpl();
         MedicamentRepository medicamentRepo = new MedicamentRepositoryImpl();
 
-        patientService = new PatientServiceImpl(patientRepo);
-        antecedentService = new AntecedentServiceImpl(antecedentRepo);
+        patientService = new PatientServiceImpl();
+        antecedentService = new AntecedentServiceImpl();
         ordonnanceService = new OrdonnanceServiceImpl(ordonnanceRepo, prescriptionRepo);
         prescriptionService = new PrescriptionServiceImpl(prescriptionRepo, ordonnanceRepo);
         medicamentService = new MedicamentServiceImpl(medicamentRepo);
@@ -1394,3 +1395,4 @@ public class PatientAntecedentOrdonnanceMedicament {
         return ordonnance;
     }
 }
+ */

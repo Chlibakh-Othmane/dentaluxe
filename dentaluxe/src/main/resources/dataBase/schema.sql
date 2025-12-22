@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS utilisateur_role (
 CREATE TABLE Patient (
                          idPatient BIGINT AUTO_INCREMENT PRIMARY KEY,
                          nom VARCHAR(255) NOT NULL,
+                         prenom VARCHAR(255),
+                         email VARCHAR(255),
                          dateDeNaissance DATE,
                          sexe VARCHAR(50),
                          adresse VARCHAR(255),

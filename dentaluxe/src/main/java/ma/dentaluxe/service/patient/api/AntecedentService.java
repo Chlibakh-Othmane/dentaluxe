@@ -3,6 +3,8 @@ package ma.dentaluxe.service.patient.api;
 import ma.dentaluxe.entities.patient.Antecedent;
 import ma.dentaluxe.entities.enums.CategorieAntecedent;
 import ma.dentaluxe.entities.enums.NiveauRisque;
+import ma.dentaluxe.mvc.dto.antecedent.AntecedentDTO;
+
 import java.util.List;
 
 /**
@@ -12,13 +14,15 @@ public interface AntecedentService {
 
     // ==================== CRUD DE BASE ====================
 
-    List<Antecedent> findAll();
+    List<AntecedentDTO> findAll();
 
-    Antecedent findById(Long id);
+    AntecedentDTO findById(Long id);
 
     Antecedent create(Antecedent antecedent);
 
     Antecedent update(Long id, Antecedent antecedent);
+
+    AntecedentDTO create(AntecedentDTO dto);
 
     void delete(Long id);
 
@@ -26,7 +30,7 @@ public interface AntecedentService {
 
     List<Antecedent> findByNom(String nom);
 
-    List<Antecedent> findByCategorie(CategorieAntecedent categorie);
+    List<AntecedentDTO> findByCategorie(CategorieAntecedent categorie);
 
     List<Antecedent> findByNiveauRisque(NiveauRisque niveauRisque);
 

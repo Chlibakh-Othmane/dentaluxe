@@ -15,6 +15,8 @@ import lombok.experimental.SuperBuilder;
 @AllArgsConstructor
 @SuperBuilder
 public class Antecedent extends BaseEntity {
+    private long idAntecedent;
+    private long idDm;
     private String nom;
     private CategorieAntecedent categorie;
     private NiveauRisque niveauRisque;

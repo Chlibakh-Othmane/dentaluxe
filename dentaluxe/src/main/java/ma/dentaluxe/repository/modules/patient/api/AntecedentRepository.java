@@ -4,7 +4,7 @@ import ma.dentaluxe.entities.patient.Antecedent;
 import ma.dentaluxe.repository.common.CrudRepository;
 import java.util.List;
 
-public interface AntecedentRepository<Antecedant> extends CrudRepository<Antecedent, Long> {
+public interface AntecedentRepository extends CrudRepository<Antecedent, Long>  {
 
     Antecedent findById(Long id);
 
@@ -23,7 +23,7 @@ public interface AntecedentRepository<Antecedant> extends CrudRepository<Anteced
     List<Antecedent> findByCategorie(ma.dentaluxe.entities.enums.CategorieAntecedent categorie);
 
     // Recherche par niveau de risque
-    List<Antecedant> findByNiveauRisque(ma.dentaluxe.entities.enums.NiveauRisque niveauRisque);
+    List<Antecedent> findByNiveauRisque(ma.dentaluxe.entities.enums.NiveauRisque niveauRisque);
 
     // Récupère les antécédents d'un patient spécifique
     List<Antecedent> findByPatientId(Long patientId);
