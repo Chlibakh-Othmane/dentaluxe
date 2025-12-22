@@ -2,43 +2,63 @@ package ma.dentaluxe.conf;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.concurrent.ConcurrentHashMap; // Utilisation de ConcurrentHashMap
+import java.util.Map;
 import java.util.Properties;
 
 public class ApplicationContext {
     private static final Properties props = new Properties();
 
-    static {
-        System.out.println(" Chargement de beans.properties...");
-        try {
-            // On essaie de charger le fichier depuis la racine du classpath
-            InputStream input = ApplicationContext.class.getResourceAsStream("/config/beans.properties");
+    // Amélioration 1 : ConcurrentHashMap pour éviter les bugs si deux threads
+    // appellent getBean en même temps (ex: chargement arrière-plan)
+    private static final Map<String, Object> instances = new ConcurrentHashMap<>();
 
+    static {
+        try (InputStream input = ApplicationContext.class.getResourceAsStream("/config/beans.properties")) {
             if (input == null) {
-                System.err.println(" ERREUR CRITIQUE : Le fichier '/config/beans.properties' est introuvable !");
-                System.err.println(" Vérifiez que le dossier 'resources' est bien marqué comme 'Resources Root'.");
-                System.err.println(" Faites 'Build > Rebuild Project' pour copier le fichier dans target/classes.");
+                System.err.println(" ERREUR CRITIQUE : '/config/beans.properties' introuvable !");
             } else {
                 props.load(input);
-                System.out.println(" beans.properties chargé. Nombre de beans : " + props.size());
-                input.close();
             }
         } catch (IOException e) {
-            System.err.println(" Erreur I/O lors du chargement : " + e.getMessage());
+            System.err.println(" Erreur I/O : " + e.getMessage());
         }
     }
 
-    public static Object getBean(String beanName) {
-        String className = props.getProperty(beanName);
+    // Amélioration 2 : Utilisation des "Generics" <T>
+    // Cela permet d'écrire : PatientService s = getBean("patientService", PatientService.class);
+    // Au lieu de : PatientService s = (PatientService) getBean("patientService");
+    @SuppressWarnings("unchecked")
+    public static <T> T getBean(String beanName, Class<T> requiredType) {
+        Object bean = getBean(beanName);
+        if (requiredType.isInstance(bean)) {
+            return (T) bean;
+        }
+        throw new RuntimeException("Le bean '" + beanName + "' n'est pas de type " + requiredType.getName());
+    }
 
-        if (className == null) {
-            throw new RuntimeException("⚠ Le bean ID '" + beanName + "' n'existe pas dans beans.properties !");
+    public static Object getBean(String beanName) {
+        if (instances.containsKey(beanName)) {
+            return instances.get(beanName);
         }
 
-        try {
-            Class<?> cl = Class.forName(className);
-            return cl.getDeclaredConstructor().newInstance();
-        } catch (Exception e) {
-            throw new RuntimeException(" Impossible de créer l'instance pour : " + beanName + " (Classe: " + className + ")", e);
+        // Bloc synchronisé pour être sûr qu'on ne crée pas deux fois le même objet
+        synchronized (instances) {
+            if (instances.containsKey(beanName)) return instances.get(beanName);
+
+            String className = props.getProperty(beanName);
+            if (className == null) {
+                throw new RuntimeException("⚠ Le bean ID '" + beanName + "' n'existe pas dans beans.properties !");
+            }
+
+            try {
+                Class<?> cl = Class.forName(className);
+                Object instance = cl.getDeclaredConstructor().newInstance();
+                instances.put(beanName, instance);
+                return instance;
+            } catch (Exception e) {
+                throw new RuntimeException(" Erreur lors de la création de : " + beanName, e);
+            }
         }
     }
 }

@@ -8,6 +8,8 @@ import ma.dentaluxe.entities.enums.StatutConsultation;
 import ma.dentaluxe.mvc.dto.dossier.*;
 import ma.dentaluxe.repository.modules.dossierMedical.inMemDB_implementation.*;
 import ma.dentaluxe.service.dossierMedical.api.DossierMedicalService;
+import ma.dentaluxe.conf.ApplicationContext; // AJOUTÉ
+import ma.dentaluxe.repository.modules.dossierMedical.api.*;
 
 import java.time.LocalDate;
 import java.util.List;

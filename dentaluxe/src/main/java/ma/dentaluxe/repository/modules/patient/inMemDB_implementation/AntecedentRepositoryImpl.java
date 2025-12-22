@@ -35,7 +35,7 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
 
     @Override
     public Antecedent findById(Long id) {
-        String sql = "SELECT * FROM antecedents WHERE id = ?";
+        String sql = "SELECT * FROM antecedents WHERE idAntecedent = ?";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -54,35 +54,29 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
 
     @Override
     public void create(Antecedent antecedent) {
-
-        String sql = "INSERT INTO antecedents (idDM, nom, categorie, niveauDeRisque) VALUES (?, ?, ?, ?)";
+        String sql = "INSERT INTO antecedents (nom, categorie, niveauDeRisque, idDM) VALUES (?, ?, ?, ?)";
 
         try (Connection conn = Db.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(
-                     sql,
-                     Statement.RETURN_GENERATED_KEYS
-             )) {
+             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            if (antecedent.getIdDM() != null) {
-                pstmt.setLong(1, antecedent.getIdDM());
-            } else {
-                pstmt.setNull(1, Types.INTEGER);
-            }
-
-            pstmt.setString(2, antecedent.getNom());
-            pstmt.setString(3, String.valueOf(antecedent.getCategorie()));
-            pstmt.setString(4, antecedent.getNiveauRisque().name());
+            pstmt.setString(1, antecedent.getNom());
+            pstmt.setString(2, antecedent.getCategorie().name());
+            pstmt.setString(3, antecedent.getNiveauRisque().name());
+            pstmt.setNull(4, Types.BIGINT); // On autorise le null pour le catalogue
 
             pstmt.executeUpdate();
 
             try (ResultSet keys = pstmt.getGeneratedKeys()) {
                 if (keys.next()) {
-                    antecedent.setIdAntecedent(keys.getLong(1));
+                    // Utilise le nom exact du setter de ton entité Antecedent.java
+                    // Si le champ s'appelle 'id', utilise setId().
+                    antecedent.setId(keys.getLong(1));
                 }
             }
-
         } catch (SQLException e) {
+            // TRÈS IMPORTANT : printStackTrace pour voir l'erreur dans le terminal
             e.printStackTrace();
+            throw new RuntimeException("Erreur SQL lors du CREATE Antecedent", e);
         }
     }
 
@@ -228,7 +222,8 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
 
     private Antecedent mapResultSetToAntecedent(ResultSet rs) throws SQLException {
         return Antecedent.builder()
-                .id(rs.getLong("id"))
+                .idAntecedent(rs.getLong("idAntecedent"))
+                .idDM(rs.getLong("idDM"))
                 .nom(rs.getString("nom"))
                 .categorie(CategorieAntecedent.valueOf(rs.getString("categorie")))
                 .niveauRisque(NiveauRisque.valueOf(rs.getString("niveauDeRisque")))
@@ -237,39 +232,5 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
 
     // ==================== IMPLÉMENTATION DES MÉTHODES GÉNÉRIQUES ====================
 
-    @Override
-    public Object findById(Object o) {
-        if (o instanceof Long) {
-            return findById((Long) o);
-        }
-        return null;
-    }
 
-    @Override
-    public void create(Object entity) {
-        if (entity instanceof Antecedent) {
-            create((Antecedent) entity);
-        }
-    }
-
-    @Override
-    public void update(Object entity) {
-        if (entity instanceof Antecedent) {
-            update((Antecedent) entity);
-        }
-    }
-
-    @Override
-    public void delete(Object entity) {
-        if (entity instanceof Antecedent) {
-            delete((Antecedent) entity);
-        }
-    }
-
-    @Override
-    public void deleteById(Object id) {
-        if (id instanceof Long) {
-            deleteById((Long) id);
-        }
-    }
 }

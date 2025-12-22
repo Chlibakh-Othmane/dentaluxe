@@ -1,13 +1,16 @@
 package ma.dentaluxe.mvc.controllers.modules.patient.api;
 
-public interface PatientController
-{
+import ma.dentaluxe.mvc.dto.patient.PatientCreateDTO;
+import ma.dentaluxe.mvc.dto.patient.PatientDTO;
+import java.util.List;
 
-    /**
-     * Méthode qui affiche les patients ajoutés aujourd'hui au système
-     * trié par date d'ajout au système
-     * Chaque patient est affiché seulement avec son nom complet, son âge et sa date d'ajout formatée (selon un PatientDTO)
-     */
+public interface PatientController {
+
+    // Ta méthode spécifique
     void showRecentPatients();
 
+    // Méthodes standards pour que le contrôleur soit utile à ta vue
+    void savePatient(PatientCreateDTO dto);
+    List<PatientDTO> getAllPatients();
+    void removePatient(Long id);
 }
