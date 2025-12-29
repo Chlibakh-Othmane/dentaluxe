@@ -42,7 +42,6 @@ public class ApplicationContext {
             return instances.get(beanName);
         }
 
-        // Bloc synchronisé pour être sûr qu'on ne crée pas deux fois le même objet
         synchronized (instances) {
             if (instances.containsKey(beanName)) return instances.get(beanName);
 
@@ -52,12 +51,16 @@ public class ApplicationContext {
             }
 
             try {
-                Class<?> cl = Class.forName(className);
+                // --- RECTIFICATION : AJOUT DE .trim() ---
+                Class<?> cl = Class.forName(className.trim());
+
                 Object instance = cl.getDeclaredConstructor().newInstance();
                 instances.put(beanName, instance);
                 return instance;
             } catch (Exception e) {
-                throw new RuntimeException(" Erreur lors de la création de : " + beanName, e);
+                // On affiche la cause réelle pour aider au débug
+                e.printStackTrace();
+                throw new RuntimeException(" Erreur lors de la création de : " + beanName + " (Classe: " + className + ")", e);
             }
         }
     }
