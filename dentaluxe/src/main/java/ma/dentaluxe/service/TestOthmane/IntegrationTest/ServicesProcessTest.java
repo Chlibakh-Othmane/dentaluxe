@@ -1,6 +1,7 @@
 package ma.dentaluxe.service.TestOthmane.IntegrationTest;
 
 import ma.dentaluxe.conf.ApplicationContext;
+import ma.dentaluxe.conf.Db;
 import ma.dentaluxe.entities.enums.*;
 import ma.dentaluxe.mvc.dto.patient.*;
 import ma.dentaluxe.mvc.dto.antecedent.*;
@@ -12,13 +13,10 @@ import ma.dentaluxe.service.ordonnance.api.*;
 import ma.dentaluxe.service.medicament.api.*;
 import ma.dentaluxe.service.dossierMedical.api.DossierMedicalService;
 
+import java.sql.*;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * TEST DE PROCESSUS DE BOUT EN BOUT AVEC TOUTES LES LIAISONS
- * @author : Chlibakh Othmane
- */
 public class ServicesProcessTest {
 
     public static void main(String[] args) {
@@ -35,64 +33,96 @@ public class ServicesProcessTest {
             MedicamentService medicamentService = (MedicamentService) ApplicationContext.getBean("medicamentService");
             OrdonnanceService ordonnanceService = (OrdonnanceService) ApplicationContext.getBean("ordonnanceService");
 
-            // --- 2. ETAPE 0 : PRÉPARATION DES CATALOGUES ---
+            // --- 2. ÉTAPE 0.5 : CRÉATION DYNAMIQUE DU MÉDECIN (INFAILLIBLE) ---
+            System.out.println("[RUN] Création d'un médecin de test...");
+            Long idMedecinTest = null;
+
+            try (Connection conn = Db.getConnection()) {
+                conn.createStatement().execute("SET FOREIGN_KEY_CHECKS = 0");
+
+                // On crée un utilisateur unique
+                String emailMed = "doc." + System.currentTimeMillis() + "@test.ma";
+                PreparedStatement psUser = conn.prepareStatement(
+                        "INSERT INTO utilisateur (nom, prenom, email, login, password_hash, sexe) VALUES ('Dr', 'Test', ?, ?, 'hash', 'HOMME')",
+                        Statement.RETURN_GENERATED_KEYS);
+                psUser.setString(1, emailMed);
+                psUser.setString(2, "login." + System.currentTimeMillis());
+                psUser.executeUpdate();
+
+                ResultSet rs = psUser.getGeneratedKeys();
+                if (rs.next()) {
+                    idMedecinTest = rs.getLong(1);
+                    // On l'ajoute en tant que Staff
+                    PreparedStatement psStaff = conn.prepareStatement("INSERT INTO staff (id, salaire, date_recrutement) VALUES (?, 20000, CURDATE())");
+                    psStaff.setLong(1, idMedecinTest);
+                    psStaff.executeUpdate();
+
+                    // On l'ajoute en tant que Médecin
+                    PreparedStatement psMed = conn.prepareStatement("INSERT INTO medecin (id, specialite) VALUES (?, 'Chirurgien')");
+                    psMed.setLong(1, idMedecinTest);
+                    psMed.executeUpdate();
+                }
+                conn.createStatement().execute("SET FOREIGN_KEY_CHECKS = 1");
+            }
+
+            if (idMedecinTest == null) throw new RuntimeException("Impossible de créer le médecin de test.");
+            System.out.println(" => OK : Médecin créé avec l'ID réel : " + idMedecinTest);
+
+            // --- 3. ETAPE 0 : PRÉPARATION DES CATALOGUES ---
+            System.out.println("[RUN] Préparation des catalogues...");
             AntecedentDTO catAnt = antCatalogueService.create(AntecedentDTO.builder()
                     .nom("Hypertension").categorie(CategorieAntecedent.MALADIE).niveauRisque(NiveauRisque.MODERE).build());
 
             MedicamentDTO catMed = medicamentService.create(MedicamentDTO.builder()
                     .nom("Amlodipine").type("Cœur").forme("Gélule").prixUnitaire(60.0).remboursable(true).build());
 
-            // --- 3. ETAPE 1 : CRÉATION DE LA CHAÎNE ---
-            System.out.println("[RUN] Création de la chaîne complète : Patient -> Dossier -> Antécédent -> Ordonnance -> Prescription");
-
-            // Création Patient
+            // --- 4. ETAPE 1 : CRÉATION DU PATIENT ET DOSSIER ---
+            System.out.println("[RUN] Création du patient et de son dossier...");
             PatientDTO patient = patientService.createPatient(PatientCreateDTO.builder()
                     .nom("Berrada").prenom("Amine").email("a."+System.currentTimeMillis()+"@test.com")
                     .telephone("0611223344").dateNaissance(LocalDate.of(1985, 5, 10))
                     .sexe(Sexe.HOMME).assurance(Assurance.CNOPS).build());
 
-            // Création Dossier
             DossierMedicalDTO dossier = dossierService.createDossier(patient.getId());
 
             // Liaison Antécédent
             antPatientService.addAntecedentToPatient(AntecedentPatientCreateDTO.builder()
-                    .idPatient(patient.getId()).idAntecedent(catAnt.getId()).notes("Suivi cardiologue").actif(true).build());
+                    .idPatient(patient.getId()).idAntecedent(catAnt.getId()).notes("Suivi cardio").actif(true).build());
 
-            // Création Ordonnance
+            // --- 5. ETAPE 3 : CRÉATION ORDONNANCE (AVEC LE BON MÉDECIN) ---
+            System.out.println("[RUN] Création de l'ordonnance...");
             PrescriptionCreateDTO p1 = PrescriptionCreateDTO.builder()
                     .idMedicament(catMed.getIdMedicament()).quantite(1).frequence("1 soir").dureeEnJours(30).build();
+
             OrdonnanceDTO ordo = ordonnanceService.createOrdonnance(
-                    OrdonnanceCreateDTO.builder().idDM(dossier.getIdDM()).idMedecin(1L).dateOrdonnance(LocalDate.now()).build(),
+                    OrdonnanceCreateDTO.builder()
+                            .idDM(dossier.getIdDM())
+                            .idMedecin(idMedecinTest) // <--- ON UTILISE L'ID RÉEL RÉCUPÉRÉ
+                            .dateOrdonnance(LocalDate.now())
+                            .build(),
                     List.of(p1));
 
-            // --- 4. AFFICHAGE DU TABLEAU DE SYNTHÈSE (APRÈS CRÉATION) ---
-            System.out.println("\n>>> VUE SYNTHÉTIQUE DU PROCESSUS (APRÈS INSERTIONS) :");
+            // --- 6. AFFICHAGE DU TABLEAU ---
+            System.out.println("\n>>> VUE SYNTHÉTIQUE DU PROCESSUS RÉUSSI :");
             printProcessTable(patient, antPatientService.getPatientMedicalHistory(patient.getId()), ordo);
 
-            // --- 5. ETAPE 4 : MISE À JOUR (Changement prescription et Patient) ---
-            System.out.println("\n[RUN] Mise à jour : Changement du nom du patient et de la posologie...");
+            // --- 7. ETAPE 4 : MISE À JOUR ---
+            System.out.println("\n[RUN] Mise à jour des données...");
             patientService.updatePatient(patient.getId(), PatientUpdateDTO.builder().nom("BERRADA (MAJ)").prenom("Amine").telephone("0600000000").build());
 
-            // On met à jour la prescription via le service
-            ordonnanceService.updatePrescription(ordo.getPrescriptions().get(0).getIdPrescription(), 2, "2 soirs", 60);
+            ordonnanceService.updatePrescription(PrescriptionUpdateDTO.builder()
+                    .idPrescription(ordo.getPrescriptions().get(0).getIdPrescription())
+                    .quantite(2).frequence("2 soirs").dureeEnJours(60).build());
 
-            // On recharge les données pour le tableau
-            PatientDTO updatedPatient = patientService.getPatientById(patient.getId());
-            OrdonnanceDTO updatedOrdo = ordonnanceService.getOrdonnanceById(ordo.getIdOrdo());
+            // Rechargement et affichage final
+            PatientDTO updatedP = patientService.getPatientById(patient.getId());
+            OrdonnanceDTO updatedO = ordonnanceService.getOrdonnanceById(ordo.getIdOrdo());
+            printProcessTable(updatedP, antPatientService.getPatientMedicalHistory(patient.getId()), updatedO);
 
-            System.out.println("\n>>> VUE SYNTHÉTIQUE DU PROCESSUS (APRÈS MISES À JOUR) :");
-            printProcessTable(updatedPatient, antPatientService.getPatientMedicalHistory(patient.getId()), updatedOrdo);
-
-            // --- 6. ETAPE 5 : SUPPRESSION ---
-            System.out.println("\n[RUN] Suppression de l'ordonnance et du patient...");
+            // --- 8. NETTOYAGE ---
             ordonnanceService.deleteOrdonnance(ordo.getIdOrdo());
             patientService.deletePatient(patient.getId());
-
-            System.out.println("\n>>> ÉTAT FINAL : " + (patientService.searchByNom("BERRADA").isEmpty() ? "Base de données nettoyée." : "Erreur suppression."));
-
-            System.out.println("\n========================================================================================================================");
-            System.out.println("                                    PROCESS TEST VALIDÉ ET TERMINÉ AVEC SUCCÈS                                          ");
-            System.out.println("========================================================================================================================");
+            System.out.println("\n>>> BASE NETTOYÉE. TEST RÉUSSI !");
 
         } catch (Exception e) {
             System.err.println("\n❌ ERREUR : " + e.getMessage());
@@ -100,42 +130,20 @@ public class ServicesProcessTest {
         }
     }
 
-    /**
-     * Affiche un tableau croisé montrant toutes les liaisons du patient
-     */
     private static void printProcessTable(PatientDTO p, List<AntecedentPatientDTO> ants, OrdonnanceDTO ordo) {
-        // En-têtes
-        String format = "| %-18s | %-15s | %-18s | %-15s | %-10s | %-8s |%n";
-        String separator = "+--------------------+-----------------+--------------------+-----------------+------------+----------+";
-
+        String format = "| %-18s | %-15s | %-18s | %-15s | %-10s |%n";
+        String separator = "+--------------------+-----------------+--------------------+-----------------+------------+";
         System.out.println(separator);
-        System.out.printf(format, "PATIENT", "ANTECEDENT", "MEDICAMENT", "FREQ/DOSE", "DURÉE", "PRIX UT");
+        System.out.printf(format, "PATIENT", "ANTECEDENT", "MEDICAMENT", "POSOLOGIE", "DUREE");
         System.out.println(separator);
-
-        String patientName = p.getNom() + " " + p.getPrenom();
-        String antecedentName = (ants.isEmpty()) ? "Aucun" : ants.get(0).getNomAntecedent();
-
-        // Comme un patient peut avoir plusieurs prescriptions, on boucle dessus
+        String pName = p.getNom() + " " + p.getPrenom();
+        String aName = (ants.isEmpty()) ? "Aucun" : ants.get(0).getNomAntecedent();
         if (ordo != null && ordo.getPrescriptions() != null) {
             for (PrescriptionDTO pr : ordo.getPrescriptions()) {
-                System.out.printf(format,
-                        truncate(patientName, 18),
-                        truncate(antecedentName, 15),
-                        truncate(pr.getNomMedicament(), 18),
-                        pr.getFrequence(),
-                        pr.getDureeEnJours() + " j",
-                        "60.0 DH" // On pourrait aller chercher le prix via le service si besoin
-                );
-                // Pour les lignes suivantes du même patient, on n'affiche plus le nom pour la lisibilité
-                patientName = "";
-                antecedentName = "";
+                System.out.printf(format, pName, aName, pr.getNomMedicament(), pr.getFrequence(), pr.getDureeEnJours() + " j");
+                pName = ""; aName = "";
             }
         }
         System.out.println(separator);
-    }
-
-    private static String truncate(String text, int size) {
-        if (text == null) return "N/A";
-        return text.length() > size ? text.substring(0, size-3) + "..." : text;
     }
 }

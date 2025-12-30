@@ -4,6 +4,7 @@ import ma.dentaluxe.conf.ApplicationContext;
 import ma.dentaluxe.conf.Db;
 import ma.dentaluxe.entities.acte.Acte;
 import ma.dentaluxe.entities.enums.*;
+import ma.dentaluxe.entities.patient.Antecedent;
 import ma.dentaluxe.entities.patient.Patient;
 import ma.dentaluxe.entities.dossier.DossierMedical;
 import ma.dentaluxe.entities.consultation.Consultation;
@@ -21,6 +22,7 @@ import ma.dentaluxe.entities.utilisateur.Utilisateur;
 
 // --- IMPORTS DES INTERFACES (API) ---
 import ma.dentaluxe.repository.modules.AntecedentPatient.api.AntecedentPatientRepository;
+import ma.dentaluxe.repository.modules.patient.api.AntecedentRepository;
 import ma.dentaluxe.repository.modules.patient.api.PatientRepository;
 import ma.dentaluxe.repository.modules.dossierMedical.api.*;
 import ma.dentaluxe.repository.modules.agenda.api.RDVRepository;
@@ -38,7 +40,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * AUTEUR : AYA LEZREGUE  & BAKIR AYA
+ * AUTEUR : AYA LEZREGUE  & BAKIR AYA et adapté par Chlibakh Othmane
  * Test complet des repositories avec Injection de Dépendances via ApplicationContext
  * ORDRE : Cabinet → Staff → Caisse → Patient → Antécédents → Dossier → RDV → Consultation →
  *         Actes → Intervention → SF → Facture → Ordonnance → Certificat
@@ -59,6 +61,7 @@ public class Test {
     private static MedicamentRepository medicamentRepo;
     private static CertificatRepository certificatRepo;
     private static AntecedentsRepository antecedentsRepo;
+    private static AntecedentRepository antecedentRepo;
     private static AntecedentPatientRepository antecedentPatientRepo;
     private static AuthRepository authRepo;
 
@@ -101,8 +104,8 @@ public class Test {
             certificatRepo = (CertificatRepository) ApplicationContext.getBean("certificatRepo");
             antecedentsRepo = (AntecedentsRepository) ApplicationContext.getBean("antecedentsRepo");
             antecedentPatientRepo = (AntecedentPatientRepository) ApplicationContext.getBean("AntecedentPatientRepo");
+            antecedentRepo = (AntecedentRepository) ApplicationContext.getBean("antecedentRepo");
             authRepo = (AuthRepository) ApplicationContext.getBean("authRepo");
-
             System.out.println(" Tous les repositories ont été injectés avec succès depuis beans.properties.\n");
         } catch (Exception e) {
             System.err.println(" Erreur critique lors de l'injection des dépendances : " + e.getMessage());
@@ -257,35 +260,38 @@ public class Test {
             System.out.println("   Patient créé - " + patient.getNom() + " " + patient.getPrenom() + " (ID: " + idPatient + ")\n");
 
             // ========================================
-            // ÉTAPE 5 : CRÉER DES ANTÉCÉDENTS
-            // ========================================
+// ÉTAPE 5 : CRÉER DES ANTÉCÉDENTS ET LIER AU PATIENT
+// ========================================
             System.out.println(" ÉTAPE 5 : Création des antécédents du patient");
             System.out.println("─────────────────────────────────────────");
 
-            Long idAntecedentAllergie = 1L;   // Allergie Pénicilline
-            Long idAntecedentDiabete  = 2L;   // Diabète Type 2
+// 1. Créer d'abord l'antécédent dans le CATALOGUE
+            Antecedent catalogueAnt = Antecedent.builder()
+                    .nom("Allergie Pénicilline")
+                    .categorie(CategorieAntecedent.ALLERGIE)
+                    .niveauRisque(NiveauRisque.ELEVE)
+                    .build();
 
+            antecedentRepo.create(catalogueAnt); // Ton repo remplit l'ID ici
+            idAntecedent1 = catalogueAnt.getIdAntecedent(); // On récupère l'ID réel
+            if (idAntecedent1 == null || idAntecedent1 == 0) {
+                throw new RuntimeException("ARRÊT DU TEST : MySQL n'a pas généré d'ID (ID est 0). " +
+                        "Vérifiez que la colonne idAntecedent est bien en AUTO_INCREMENT.");
+            }
+
+            System.out.println("     Antécédent catalogue créé - ID: " + idAntecedent1);
+
+           // 2. Créer la LIAISON dans antecedent_patient
             AntecedentPatient ap1 = AntecedentPatient.builder()
-                    .idPatient(idPatient)
-                    .idAntecedent(idAntecedentAllergie)
+                    .idPatient(idPatient)       // ID du patient créé à l'étape 4
+                    .idAntecedent(idAntecedent1) // ID qu'on vient de générer
                     .dateAjout(LocalDate.now())
                     .actif(true)
-                    .notes("Allergie découverte en 2020")
+                    .notes("Découvert lors du test")
                     .build();
 
             antecedentPatientRepo.create(ap1);
-
-            AntecedentPatient ap2 = AntecedentPatient.builder()
-                    .idPatient(idPatient)
-                    .idAntecedent(idAntecedentDiabete)
-                    .dateAjout(LocalDate.now())
-                    .actif(true)
-                    .notes("Diabète stabilisé avec Metformine")
-                    .build();
-
-            antecedentPatientRepo.create(ap2);
-
-            System.out.println("    Antécédents personnels associés au patient\n");
+            System.out.println("    => Liaison Patient-Antécédent réussie !\n");
 
             // ========================================
             // ÉTAPE 6 : CRÉER LE DOSSIER MÉDICAL

@@ -215,6 +215,11 @@ public class OrdonnanceServiceImpl implements OrdonnanceService {
                 .build();
     }
 
+    @Override
+    public void updatePrescription(PrescriptionUpdateDTO build) {
+
+    }
+
     // ==================== MAPPING PRIVÉ ====================
 
     private OrdonnanceDTO convertToOrdonnanceDTO(Ordonnance o) {

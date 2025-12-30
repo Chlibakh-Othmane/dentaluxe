@@ -1,15 +1,13 @@
 package ma.dentaluxe.service.dossierMedical.baseImplementation;
 
+import ma.dentaluxe.conf.ApplicationContext;
 import ma.dentaluxe.entities.consultation.Consultation;
-import ma.dentaluxe.entities.dossier.Antecedents;
+import ma.dentaluxe.entities.patient.Antecedent; // Utilise TON entité unifiée
 import ma.dentaluxe.entities.dossier.DossierMedical;
-// 👇 IMPORT IMPORTANT POUR CORRIGER L'ERREUR 'EN_ATTENTE'
 import ma.dentaluxe.entities.enums.StatutConsultation;
 import ma.dentaluxe.mvc.dto.dossier.*;
-import ma.dentaluxe.repository.modules.dossierMedical.inMemDB_implementation.*;
-import ma.dentaluxe.service.dossierMedical.api.DossierMedicalService;
-import ma.dentaluxe.conf.ApplicationContext; // AJOUTÉ
 import ma.dentaluxe.repository.modules.dossierMedical.api.*;
+import ma.dentaluxe.service.dossierMedical.api.DossierMedicalService;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -17,9 +15,17 @@ import java.util.stream.Collectors;
 
 public class DossierMedicalServiceImpl implements DossierMedicalService {
 
-    private final DossierMedicalRepositoryImpl dossierRepo = new DossierMedicalRepositoryImpl();
-    private final AntecedentsRepositoryImpl antecedentRepo = new AntecedentsRepositoryImpl();
-    private final ConsultationRepositoryImpl consultationRepo = new ConsultationRepositoryImpl();
+    // On déclare les interfaces (le contrat)
+    private final DossierMedicalRepository dossierRepo;
+    private final AntecedentsRepository antecedentRepo;
+    private final ConsultationRepository consultationRepo;
+
+    // CONSTRUCTEUR VIDE : On récupère les instances via l'ApplicationContext
+    public DossierMedicalServiceImpl() {
+        this.dossierRepo = (DossierMedicalRepository) ApplicationContext.getBean("dossierRepo");
+        this.antecedentRepo = (AntecedentsRepository) ApplicationContext.getBean("antecedentsRepo");
+        this.consultationRepo = (ConsultationRepository) ApplicationContext.getBean("consultationRepo");
+    }
 
     @Override
     public DossierMedicalDTO createDossier(Long idPatient) {
@@ -47,14 +53,15 @@ public class DossierMedicalServiceImpl implements DossierMedicalService {
 
     @Override
     public AntecedentDTO addAntecedent(AntecedentDTO dto) {
-        Antecedents entity = new Antecedents();
-        entity.setIdDM(dto.getIdDM());
-        entity.setNom(dto.getNom());
-        entity.setCategorie(dto.getCategorie());
-        entity.setNiveauDeRisque(dto.getNiveauDeRisque());
+        // On utilise l'entité Antecedent (sans S) que nous avons unifiée
+        Antecedent entity = Antecedent.builder()
+                .nom(dto.getNom())
+                .categorie(dto.getCategorie())
+                .niveauRisque(dto.getNiveauDeRisque())
+                .build();
 
         antecedentRepo.create(entity);
-        dto.setIdAntecedent(entity.getIdAntecedent());
+        dto.setIdAntecedent(entity.getId()); // On récupère l'ID généré
         return dto;
     }
 
@@ -62,8 +69,8 @@ public class DossierMedicalServiceImpl implements DossierMedicalService {
     public List<AntecedentDTO> getAntecedentsByDossier(Long idDM) {
         return antecedentRepo.findByDossierMedicalId(idDM).stream()
                 .map(a -> new AntecedentDTO(
-                        a.getIdAntecedent(), a.getIdDM(), a.getNom(),
-                        a.getCategorie(), a.getNiveauDeRisque()))
+                        a.getId(), a.getIdDM(), a.getNom(),
+                        a.getCategorie(), a.getNiveauRisque()))
                 .collect(Collectors.toList());
     }
 
@@ -79,7 +86,6 @@ public class DossierMedicalServiceImpl implements DossierMedicalService {
         entity.setIdRDV(dto.getIdRDV());
         entity.setIdMedecin(dto.getIdMedecin());
         entity.setDateConsultation(dto.getDateConsultation());
-        // 👇 ICI CELA NE DEVRAIT PLUS ÊTRE ROUGE GRÂCE À L'IMPORT
         entity.setStatut(StatutConsultation.PLANIFIEE);
         entity.setObservation(dto.getObservation());
 
@@ -119,14 +125,11 @@ public class DossierMedicalServiceImpl implements DossierMedicalService {
                 .collect(Collectors.toList());
     }
 
-    // --- MAPPERS CORRIGÉS ---
-
     private DossierMedicalDTO mapToDTO(DossierMedical dm) {
         if (dm == null) return null;
         return new DossierMedicalDTO(dm.getIdDM(), dm.getIdPatient(), dm.getDateDeCreation());
     }
 
-    // 👇 CORRECTION MAJEURE DU CONSTRUCTEUR
     private ConsultationDTO mapToConsultationDTO(Consultation c) {
         if (c == null) return null;
         return new ConsultationDTO(
@@ -135,7 +138,7 @@ public class DossierMedicalServiceImpl implements DossierMedicalService {
                 c.getIdRDV(),
                 c.getIdMedecin(),
                 c.getDateConsultation(),
-                null, // <--- AJOUT DE 'null' POUR LE CHAMP 'MOTIF' (si l'entité ne l'a pas)
+                null,
                 c.getStatut(),
                 c.getObservation()
         );

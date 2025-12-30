@@ -36,6 +36,8 @@ public interface OrdonnanceService {
     OrdonnanceDTO duplicateOrdonnance(Long idOrdo, LocalDate nouvelleDate);
     OrdonnanceStatsDTO getOrdonnanceStatistics();
 
+    void updatePrescription(PrescriptionUpdateDTO build);
+
     // NOTE : TOUTES LES INTERFACES INTERNES (OrdonnanceDTO, etc.)
     // ET LES EXCEPTIONS ONT ÉTÉ SUPPRIMÉES D'ICI.
 }

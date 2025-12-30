@@ -13,7 +13,7 @@ public class PrescriptionBatchController implements PrescriptionController {
     @Override
     public void addPrescriptionToOrdo(PrescriptionCreateDTO dto) {
         System.out.println("BATCH : Ajout médicament ID " + dto.getIdMedicament() + " à l'Ordo " + dto.getIdOrdo());
-        service.createPrescription((PrescriptionService.PrescriptionCreateDTO) dto);
+        service.createPrescription(dto);
     }
 
     @Override public void updatePrescriptionDetails(Long id, Integer qte, String f, Integer d) { PrescriptionUpdateDTO updateDTO = PrescriptionUpdateDTO.builder()

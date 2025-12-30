@@ -28,10 +28,20 @@ public class PrescriptionSwingController implements PrescriptionController {
     @Override
     public void updatePrescriptionDetails(Long id, Integer qte, String freq, Integer duree) {
         try {
-            service.updatePrescription(id, qte, freq, duree);
-            JOptionPane.showMessageDialog(null, "Posologie mise à jour.");
+            // 1. On emballe les 4 arguments dans le DTO que le service attend
+            PrescriptionUpdateDTO updateDTO = PrescriptionUpdateDTO.builder()
+                    .idPrescription(id)
+                    .quantite(qte)
+                    .frequence(freq)
+                    .dureeEnJours(duree)
+                    .build();
+
+            // 2. On appelle le service avec le DTO (1 seul argument au lieu de 4)
+            service.updatePrescription(updateDTO);
+
+            JOptionPane.showMessageDialog(null, "Posologie mise à jour avec succès.");
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(null, e.getMessage());
+            JOptionPane.showMessageDialog(null, "Erreur lors de la mise à jour : " + e.getMessage());
         }
     }
 
