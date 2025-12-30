@@ -50,28 +50,49 @@ public class ConsultationRepositoryImpl implements ConsultationRepository {
 
     @Override
     public void create(Consultation consultation) {
-        String sql = "INSERT INTO Consultation (idRDV, idDM, idMedecin, dateConsultation, statut, observation, motif) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?)";
+        // On utilise les noms exacts de ta capture : idDM, idMedecin, dateConsultation, statut, observation, idRDV
+        String sql = "INSERT INTO consultation (idDM, idMedecin, dateConsultation, statut, observation, idRDV) " +
+                "VALUES (?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = Db.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 
-            pstmt.setObject(1, consultation.getIdRDV(), Types.BIGINT);
-            pstmt.setLong(2, consultation.getIdDM());
-            pstmt.setLong(3, consultation.getIdMedecin());
-            pstmt.setDate(4, Date.valueOf(consultation.getDateConsultation()));
-            pstmt.setString(5, consultation.getStatut().name());
-            pstmt.setString(6, consultation.getObservation());
-            pstmt.setString(7, consultation.getMotif());
+            // 1. idDM
+            pstmt.setLong(1, consultation.getIdDM());
+
+            // 2. idMedecin
+            pstmt.setLong(2, consultation.getIdMedecin());
+
+            // 3. dateConsultation
+            pstmt.setDate(3, Date.valueOf(consultation.getDateConsultation()));
+
+            // 4. statut
+            pstmt.setString(4, consultation.getStatut().name());
+
+            // 5. observation (C'est ici qu'il ne faut PAS mettre 'motif')
+            pstmt.setString(5, consultation.getObservation());
+
+            // 6. idRDV (On utilise setObject pour accepter la valeur NULL si pas de RDV lié)
+            if (consultation.getIdRDV() != null) {
+                pstmt.setLong(6, consultation.getIdRDV());
+            } else {
+                pstmt.setNull(6, Types.BIGINT);
+            }
 
             pstmt.executeUpdate();
 
-            ResultSet rs = pstmt.getGeneratedKeys();
-            if (rs.next()) {
-                consultation.setIdConsultation(rs.getLong(1));
+            // RÉCUPÉRATION DE L'ID : Crucial pour que l'ÉTAPE 10 (Intervention) ne plante pas
+            try (ResultSet rs = pstmt.getGeneratedKeys()) {
+                if (rs.next()) {
+                    consultation.setIdConsultation(rs.getLong(1));
+                    System.out.println("DEBUG : Consultation créée avec ID : " + consultation.getIdConsultation());
+                }
             }
+
         } catch (SQLException e) {
+            System.err.println("Erreur SQL lors du CREATE Consultation : " + e.getMessage());
             e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 

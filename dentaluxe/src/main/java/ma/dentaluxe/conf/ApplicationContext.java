@@ -47,7 +47,7 @@ public class ApplicationContext {
 
             String className = props.getProperty(beanName);
             if (className == null) {
-                throw new RuntimeException("⚠ Le bean ID '" + beanName + "' n'existe pas dans beans.properties !");
+                throw new RuntimeException(" Le bean ID '" + beanName + "' n'existe pas dans beans.properties !");
             }
 
             try {

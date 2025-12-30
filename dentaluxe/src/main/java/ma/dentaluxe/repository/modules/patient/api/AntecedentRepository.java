@@ -4,7 +4,9 @@ import ma.dentaluxe.entities.patient.Antecedent;
 import ma.dentaluxe.repository.common.CrudRepository;
 import java.util.List;
 
-public interface AntecedentRepository extends CrudRepository<Antecedent, Long>  {
+public interface AntecedentRepository extends CrudRepository<Antecedent, Long> {
+
+    List<Antecedent> findByNom(String nom);
 
     Antecedent findById(Long id);
 
@@ -16,8 +18,6 @@ public interface AntecedentRepository extends CrudRepository<Antecedent, Long>  
 
     void deleteById(Long id);
 
-    // Recherche par nom
-    List<Antecedent> findByNom(String nom);
 
     // Recherche par catégorie
     List<Antecedent> findByCategorie(ma.dentaluxe.entities.enums.CategorieAntecedent categorie);
