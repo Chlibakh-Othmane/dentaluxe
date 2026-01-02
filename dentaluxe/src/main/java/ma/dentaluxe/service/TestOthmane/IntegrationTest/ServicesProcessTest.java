@@ -1,5 +1,4 @@
 package ma.dentaluxe.service.TestOthmane.IntegrationTest;
-
 import ma.dentaluxe.conf.ApplicationContext;
 import ma.dentaluxe.entities.enums.*;
 import ma.dentaluxe.mvc.dto.patient.*;
@@ -11,7 +10,6 @@ import ma.dentaluxe.service.patient.api.*;
 import ma.dentaluxe.service.ordonnance.api.*;
 import ma.dentaluxe.service.medicament.api.*;
 import ma.dentaluxe.service.dossierMedical.api.DossierMedicalService;
-
 import java.time.LocalDate;
 import java.util.List;
 

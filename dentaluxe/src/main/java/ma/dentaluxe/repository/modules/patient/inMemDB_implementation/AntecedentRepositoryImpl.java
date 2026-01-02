@@ -62,7 +62,7 @@ public class AntecedentRepositoryImpl implements AntecedentRepository {
             pstmt.setString(1, antecedent.getNom());
             pstmt.setString(2, antecedent.getCategorie().name());
             pstmt.setString(3, antecedent.getNiveauRisque().name());
-            pstmt.setNull(4, Types.BIGINT); // On autorise le null pour le catalogue
+            pstmt.setNull(4, Types.BIGINT);
 
             pstmt.executeUpdate();
 
